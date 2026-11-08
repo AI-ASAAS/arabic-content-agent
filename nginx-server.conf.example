@@ -1,0 +1,49 @@
+# ======================================================================
+# نموذج إعداد Nginx لسيرفرات الإنتاج (Production VPS Reverse Proxy)
+# انسخ هذا الملف إلى /etc/nginx/sites-available/asaas-agent
+# ثم فعله عبر: sudo ln -s /etc/nginx/sites-available/asaas-agent /etc/nginx/sites-enabled/
+# ======================================================================
+
+# 1. الواجهة الأمامية (Frontend)
+server {
+    listen 80;
+    server_name your-domain.com; # ضع اسم نطاقك هنا (أو IP السيرفر)
+
+    # توجيه إلى HTTPS إذا كان لديك شهادة SSL (عبر certbot)
+    # return 301 https://$host$request_uri;
+
+    location / {
+        proxy_pass http://127.0.0.1:5180;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# 2. لوحة تحكم سير العمل (n8n Automation)
+server {
+    listen 80;
+    server_name n8n.your-domain.com; # ضع النطاق الفرعي الخاص بـ n8n
+
+    location / {
+        proxy_pass http://127.0.0.1:5678;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Webhook timeout extensions
+        proxy_read_timeout 300;
+        proxy_connect_timeout 300;
+        proxy_send_timeout 300;
+    }
+}

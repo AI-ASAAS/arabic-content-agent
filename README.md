@@ -5,23 +5,33 @@
 
 ---
 
-## ⚡ التشغيل السريع (Quick Start)
+## ⚡ التشغيل السريع على الأجهزة الشخصية (Local PC)
 
-### 1. المتطلبات:
-- تثبيت [Node.js (18+)](https://nodejs.org).
-
-### 2. التشغيل بنقرة واحدة:
+### نظام ويندوز (Windows):
 - شغّل الملف: **`start-all.bat`**
 - سيقوم تلقائياً بتثبيت الحزم وتشغيل الخوادم وفتح المتصفح على:
   - **الواجهة التفاعلية:** `http://localhost:5180`
   - **لوحة تحكم n8n:** `http://localhost:5678`
-
-### 3. استيراد سير العمل إلى n8n:
-- شغّل الملف: **`import-workflows.bat`** أو قم باستيراد `agentic_workflow.json` من داخل واجهة n8n.
-
-### 4. الإيقاف:
-- شغّل الملف: **`stop-all.bat`**
+- لاستيراد سير العمل: شغّل **`import-workflows.bat`**.
+- للإيقاف: شغّل **`stop-all.bat`**.
 
 ---
 
-للاطلاع على الشرح المفصل، راجع ملف: **`دليل_التشغيل.md`**.
+## 🌐 النشر السحابي على السيرفرات (Linux VPS / Cloud / Docker)
+
+المنظومة مجهزة بالكامل للعمل على أي خادم سحابي (Ubuntu, Debian, AWS, Hetzner, DigitalOcean) عبر أمر واحد:
+
+```bash
+git clone https://github.com/AI-ASAAS/arabic-content-agent.git
+cd arabic-content-agent
+chmod +x deploy.sh && ./deploy.sh
+```
+
+أو عبر Docker Compose مباشرة:
+```bash
+docker compose up --build -d
+./import-workflows.sh
+```
+
+للاطلاع على دليل إعداد السيرفرات وشهادات SSL و Nginx بالتفصيل، راجع:
+📖 **[دليل النشر على السيرفرات (دليل_النشر_على_السيرفرات.md)](./دليل_النشر_على_السيرفرات.md)**.

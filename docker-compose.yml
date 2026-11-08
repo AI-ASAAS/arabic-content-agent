@@ -1,13 +1,14 @@
 services:
   n8n:
     image: docker.n8n.io/n8nio/n8n:latest
-    container_name: n8n-server
+    container_name: asaas-n8n-server
     restart: unless-stopped
     ports:
-      - "5678:5678"
+      - "${N8N_PORT:-5678}:5678"
     environment:
       - N8N_PORT=5678
-      - N8N_PROTOCOL=http
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - N8N_HOST=${N8N_HOST:-localhost}
       - NODE_ENV=production
       - GENERIC_TIMEZONE=Asia/Riyadh
       - TZ=Asia/Riyadh
@@ -16,23 +17,33 @@ services:
       - EXECUTIONS_DATA_MAX_AGE=168
       - EXECUTIONS_DATA_PRUNE_MAX_COUNT=50000
       - N8N_DEFAULT_BINARY_DATA_MODE=filesystem
-      # Allow code node extensions
+      # Code extensions & security
       - NODE_FUNCTION_ALLOW_BUILTIN=*
       - NODE_FUNCTION_ALLOW_EXTERNAL=*
-      # Enable local files access
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
     volumes:
       - n8n_storage:/home/node/.n8n
       - ./shared:/data/shared
+    networks:
+      - asaas-network
 
-  tunnel:
-    image: cloudflare/cloudflared:latest
-    container_name: n8n-tunnel
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: asaas-ai-frontend
     restart: unless-stopped
-    command: tunnel --no-autoupdate --url http://n8n:5678
+    ports:
+      - "${FRONTEND_PORT:-5180}:80"
     depends_on:
       - n8n
+    networks:
+      - asaas-network
+
+networks:
+  asaas-network:
+    driver: bridge
 
 volumes:
   n8n_storage:
-    name: n8n_storage
+    name: asaas_n8n_storage
