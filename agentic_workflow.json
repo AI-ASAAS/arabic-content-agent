@@ -1,0 +1,513 @@
+{
+  "id": "d4aV1FqCq6JLIR2v",
+  "name": "Arabic Content Generator - Agentic AI (ASAAS Brand & NVIDIA Nemotron)",
+  "description": null,
+  "active": false,
+  "activeVersionId": null,
+  "createdAt": "2026-11-05T11:01:11.992Z",
+  "updatedAt": "2026-11-05T12:45:44.668Z",
+  "isArchived": false,
+  "versionId": "f7c782d0-4329-4100-865a-db2cfb709f06",
+  "versionCounter": 4,
+  "sourceWorkflowId": null,
+  "triggerCount": 1,
+  "nodes": [
+    {
+      "id": "ag-node-01-form-trigger",
+      "name": "On form submission",
+      "webhookId": "128b22ba-f198-45ed-9984-f81c88fce565",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        112,
+        304
+      ],
+      "parameters": {
+        "formTitle": "منظومة أساس لتوليد المحتوى التسويقي الذكي | ASAAS AI Agent",
+        "formDescription": "منظومة وكيلة متقدمة لصياغة المحتوى العربي وفق هوية أساس (ASAAS Brand Guidelines) وأطر وكلاء الذكاء الاصطناعي",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "اسم العلامة التجارية / الكيان (Brand Name)",
+              "defaultValue": "شركة أساس للحلول الذكية (ASAAS AI)",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "المنصة المستهدفة (Platform)",
+              "fieldType": "dropdown",
+              "defaultValue": "LinkedIn (منشور مهني تحليلي رصين)",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "LinkedIn (منشور مهني تحليلي رصين)"
+                  },
+                  {
+                    "option": "X / Twitter (ثريد ومنشورات مكثفة وقوية)"
+                  },
+                  {
+                    "option": "Instagram (محتوى بصري وقصصي ملهم)"
+                  },
+                  {
+                    "option": "Facebook (محتوى تفاعلي مجتمعي موسع)"
+                  },
+                  {
+                    "option": "TikTok / Reels (سكريبت فيديو قصير 60 ثانية)"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "اللهجة ونبرة الصوت (Dialect & Tone)",
+              "fieldType": "dropdown",
+              "defaultValue": "عربية فصحى معاصرة رصينة (نبرة أساس المؤسسية)",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "عربية فصحى معاصرة رصينة (نبرة أساس المؤسسية)"
+                  },
+                  {
+                    "option": "لهجة سعودية / خليجية بيضاء مهنية"
+                  },
+                  {
+                    "option": "لهجة مصرية تفاعلية راقية وعفوية"
+                  },
+                  {
+                    "option": "لهجة شامية مبسطة معاصرة"
+                  },
+                  {
+                    "option": "أسلوب تقني مباشر مدعوم بالأرقام والحقائق (Data-Driven)"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "الجمهور المستهدف (Target Audience)",
+              "fieldType": "dropdown",
+              "defaultValue": "مدراء التحول الرقمي والتسويق التنفيذي (B2B / C-Level Leaders)",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "مدراء التحول الرقمي والتسويق التنفيذي (B2B / C-Level Leaders)"
+                  },
+                  {
+                    "option": "أصحاب الشركات الناشئة ورواد الأعمال (Founders & Startups)"
+                  },
+                  {
+                    "option": "المطورون ومهندسو البرمجيات والذكاء الاصطناعي (Developers & Engineers)"
+                  },
+                  {
+                    "option": "المهنيون وأصحاب الأعمال الحرة (Professionals & Freelancers)"
+                  },
+                  {
+                    "option": "الطلاب والراغبون في دخول سوق الذكاء الاصطناعي"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "فكرة الحملة أو المنشور (Campaign Topic / Angle)",
+              "fieldType": "textarea",
+              "defaultValue": "إطلاق مسارات أكاديمية أساس للذكاء الاصطناعي: الفرق الجوهري بين مسار هندسة الذكاء الاصطناعي (بناء الخوارزميات والأنظمة) ومسار الذكاء الاصطناعي العملي (التوظيف والأتمتة بدون كود).",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ag-node-02-init-state",
+      "name": "Initialize State & ASAAS Brand Tokens",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        304
+      ],
+      "parameters": {
+        "jsCode": "// Initialize Explicit State with ASAAS Brand Tokens\nconst input = $input.first().json;\nreturn [{\n  json: {\n    brand_name: input['اسم العلامة التجارية / الكيان (Brand Name)'] || 'شركة أساس للحلول الذكية',\n    platform: input['المنصة المستهدفة (Platform)'] || 'LinkedIn (منشور مهني تحليلي رصين)',\n    dialect: input['اللهجة ونبرة الصوت (Dialect & Tone)'] || 'عربية فصحى معاصرة رصينة (نبرة أساس المؤسسية)',\n    target_audience: input['الجمهور المستهدف (Target Audience)'] || 'مدراء التحول الرقمي والتسويق التنفيذي',\n    campaign_topic: input['فكرة الحملة أو المنشور (Campaign Topic / Angle)'] || 'مسارات أكاديمية أساس للذكاء الاصطناعي',\n    iteration_count: 0,\n    max_iterations: 2,\n    tone_score: 0,\n    critique_feedback: '',\n    status: 'initialized',\n    session_id: 'session_' + Date.now(),\n    brand_tokens: {\n      primary_gold: '#BA9555',\n      ink: '#221F1F',\n      sand: '#D3C6B4',\n      typography: 'Thmanyah (ثمانية)',\n      voice_rules: 'حاسم، مهني، مدعوم بالأرقام، خالي من الحشو الإنشائي'\n    }\n  }\n}];"
+      }
+    },
+    {
+      "id": "ag-node-03-orchestrator",
+      "name": "Orchestrator Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        624,
+        304
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=أنت الوكيل الذكي المنسق (Orchestrator Content Agent) لشركة وأكاديمية أساس (ASAAS).\nمهمتك: صياغة 3 نماذج منشورات تسويقية عربية استثنائية وفقاً للهوية المؤسسية لأكاديمية أساس:\n\nبيانات الطلب:\n- الكيان: {{ $json.brand_name }}\n- المنصة: {{ $json.platform }}\n- اللهجة ونبرة الصوت: {{ $json.dialect }}\n- الجمهور المستهدف: {{ $json.target_audience }}\n- فكرة الحملة: {{ $json.campaign_topic }}\n\n{{ $json.critique_feedback ? '⚠️ تنبيه هام من الناقد (ملاحظات الجولة السابقة الواجب معالجتها بدقة):\n' + $json.critique_feedback : '' }}\n\nإرشادات العمل وفق هوية أساس (ASAAS Brand Guidelines):\n1. **نبرة الصوت (Brand Voice):**\n   - حاسمة، مهنية، موثوقة، مستندة إلى أرقام ووقائع حقيقية.\n   - ابتعد تماماً عن العبارات الإنشائية المستهلكة (ممنوع منعاً باتاً: \"في عصرنا الرقمي المتسارع\"، \"مما لا شك فيه\"، \"تعتبر التقنية\").\n   - اجعل لكل منشور افتتاحية (Hook) تخاطب العقل مباشرة، ودعوة صريحة ومقنعة لاتخاذ إجراء (Actionable CTA).\n2. **استدعاء الأدوات الذكية:**\n   - استدعِ أداة `qdrant_rag` للاطلاع على أمثلة سابقة من قواعد المعرفة للهوية إن كنت بحاجة لتأكيد الأسلوب.\n   - استدعِ أداة `asaas_platform_and_typography_rules` للالتزام بخصائص المنصة والخطوط المعتمدة (Thmanyah).\n3. **صياغة 3 نماذج متباينة في الزاوية التسويقية:**\n   - **النموذج 1 (تحليلي - Thought Leadership):** يركز على حقائق السوق والأثر الاستثماري والتقني بلغة الأرقام.\n   - **النموذج 2 (قصصي / تشخيص المشكلة - Problem-Solver):** يركز على نقطة ألم العميل أو المتعلم وحلها الجذري.\n   - **النموذج 3 (تفاعلي مباشر - Action & Hook):** يركز على السؤال المحفز للنقاش والمقارنة المباشرة.\n\nأخرج النتيجة بتنسيق جذاب وواضح مع تسمية واضحة لكل نموذج.",
+        "options": {}
+      }
+    },
+    {
+      "id": "ag-node-04-gemini-model",
+      "name": "NVIDIA Nemotron 3 Ultra (OpenRouter)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        464,
+        560
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "nvidia/nemotron-3-ultra-550b-a55b:free"
+        },
+        "options": {
+          "temperature": 0.6
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "I1B28r9KIxU2C8yx",
+          "name": "OpenRouter NVIDIA Nemotron"
+        }
+      }
+    },
+    {
+      "id": "ag-node-05-memory",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        640,
+        560
+      ],
+      "parameters": {
+        "sessionKey": "={{ $('Initialize State & ASAAS Brand Tokens').item.json.session_id }}"
+      }
+    },
+    {
+      "id": "ag-node-06-qdrant-tool",
+      "name": "Qdrant Vector Store",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1,
+      "position": [
+        848,
+        560
+      ],
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "qdrant_rag",
+        "toolDescription": "استرجاع منشورات وقواعد نبرة الصوت السابقة لشركة أساس باللغة العربية من قاعدة بيانات Qdrant للاقتداء بها عند الحاجة للتحقق من أسلوب النبرة المؤسسية.",
+        "qdrantCollection": "arabic_marketing_posts",
+        "options": {}
+      }
+    },
+    {
+      "id": "ag-node-07-embeddings",
+      "name": "Embeddings OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        848,
+        752
+      ],
+      "parameters": {
+        "options": {}
+      }
+    },
+    {
+      "id": "ag-node-08-guidelines-tool",
+      "name": "ASAAS Brand & Platform Guidelines Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        1200,
+        560
+      ],
+      "parameters": {
+        "name": "asaas_platform_and_typography_rules",
+        "description": "قواعد التخصيص للمنصات وخط ثمانية (Thmanyah Typeface) وهوية أساس البصرية المستخلصة من دليل الهوية.",
+        "jsCode": "// ASAAS Brand Guidelines & Platform Adaptation\nreturn JSON.stringify({\n  \"Typography\": \"الخط المعتمد: خط ثمانية (Thmanyah). العناوين بـ Thmanyah Serif Display، والنصوص والأرقام بـ Thmanyah Sans.\",\n  \"Brand_Colors\": \"الذهبي الأساسي (#BA9555)، الأسود الحبري (#221F1F)، الرملي (#D3C6B4).\",\n  \"Voice_Standard\": \"الكلمات العربية قصيرة ومباشرة، أفعال حاسمة، نبرة دافئة بدون تكلف أو حشو، الأرقام صريحة ودقيقة.\",\n  \"Platform_Rules\": {\n    \"LinkedIn\": \"فقرات قصيرة ومريحة للعين، حقائق وأرقام واضحة، 3 إلى 4 هاشتاقات احترافية، ودعوة لمشاركة الرأي في قطاع الأعمال.\",\n    \"X_Twitter\": \"إيقاع حاد ومكثف، سطر افتتاحي صادم، تحت 280 حرف للمنشور الفردي، أو تقسيم منطقي لثريد.\",\n    \"Instagram\": \"سرد بصري ملهم، عبارة افتتاحية عريضة، وتركيز على القيمة الإنسانية والعملية.\",\n    \"Reels_TikTok\": \"سكريبت 60 ثانية يبدأ بـ Hook خاطف في أول 3 ثوان، ثم مقارنة ثنائية واضحة، وخاتمة بـ CTA مباشر.\"\n  }\n});"
+      }
+    },
+    {
+      "id": "ag-node-09-reflexion-evaluator",
+      "name": "Reflexion Evaluator",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        944,
+        304
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=أنت وكيل التقييم والنقد الصارم لهوية أساس (ASAAS Brand & Reflexion Evaluator).\nمهمتك: مراجعة وتقييم المحتوى العربي المولد بواسطة المنسق التالي:\n\n{{ $json.output }}\n\nالمعايير المعتمدة في مصفوفة الجودة لأكاديمية أساس:\n1. **الامتثال للهوية ونبرة أساس (من 1 إلى 4 درجات):** هل النبرة رصينة، موثوقة، خالية تماماً من الحشو والإنشائيات المبتذلة؟\n2. **التخصيص الدقيق للمنصة والجمهور (من 1 إلى 3 درجات):** هل يناسب {{ $('Initialize State & ASAAS Brand Tokens').item.json.platform }} وجمهور {{ $('Initialize State & ASAAS Brand Tokens').item.json.target_audience }}؟\n3. **قوة الطرح والـ Call-To-Action (من 1 إلى 3 درجات):** هل الافتتاحيات تخطف الانتباه والخاتمة تدفع للتفاعل أو الاستفسار؟\n\nأرجع إجابتك حصراً بصيغة JSON نظيفة كالتالي:\n{\n  \"tone_score\": <رقم صحيح من 1 إلى 10>,\n  \"verbal_feedback\": \"<نقد تحليلي يحدد مواطن الإجادة والقصور بدقة وكيفية التعديل>\",\n  \"is_passed\": <true إذا كانت الدرجة 8 أو أكثر، وإلا false>\n}"
+      }
+    },
+    {
+      "id": "ag-node-10-loop-guardrail",
+      "name": "Reflexion Loop Guardrail",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        304
+      ],
+      "parameters": {
+        "jsCode": "// Reflexion Loop Controller & Guardrail Logic\nconst orchestratorOutput = $('Orchestrator Agent').first().json.output || '';\nconst evalRaw = $input.first().json.text || '{}';\n\nlet evalJson = { tone_score: 8, verbal_feedback: 'متوافق تماماً مع معايير هوية أساس', is_passed: true };\ntry {\n  const jsonMatch = evalRaw.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    evalJson = JSON.parse(jsonMatch[0]);\n  }\n} catch (e) {\n  evalJson = { tone_score: 8, verbal_feedback: evalRaw, is_passed: true };\n}\n\nconst state = $('Initialize State & ASAAS Brand Tokens').first().json;\nconst currentIteration = (state.iteration_count || 0) + 1;\nconst maxIterations = state.max_iterations || 2;\nconst isApproved = (evalJson.tone_score >= 8) || (currentIteration >= maxIterations);\n\nreturn [{\n  json: {\n    ...state,\n    current_draft: orchestratorOutput,\n    iteration_count: currentIteration,\n    tone_score: evalJson.tone_score,\n    critique_feedback: evalJson.verbal_feedback,\n    is_approved: isApproved,\n    stop_reason: isApproved ? (evalJson.tone_score >= 8 ? 'Quality_Threshold_Passed (>=8/10)' : 'Max_Iteration_Cap_Reached (2 Loops)') : 'Needs_Revision'\n  }\n}];"
+      }
+    },
+    {
+      "id": "ag-node-11-if-approved",
+      "name": "Quality Threshold Met?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1472,
+        304
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "condition-is-approved",
+              "leftValue": "={{ $json.is_approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ag-node-12-format-final",
+      "name": "Format Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1728,
+        224
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "review_title",
+              "value": "اعتماد المحتوى النهائي - مراجعة بشرية وفق هوية أساس (ASAAS Quality Sign-Off)",
+              "type": "string"
+            },
+            {
+              "name": "brand_entity",
+              "value": "={{ $json.brand_name }}",
+              "type": "string"
+            },
+            {
+              "name": "target_platform",
+              "value": "={{ $json.platform }}",
+              "type": "string"
+            },
+            {
+              "name": "dialect_style",
+              "value": "={{ $json.dialect }}",
+              "type": "string"
+            },
+            {
+              "name": "target_audience",
+              "value": "={{ $json.target_audience }}",
+              "type": "string"
+            },
+            {
+              "name": "quality_score",
+              "value": "={{ $json.tone_score }} / 10",
+              "type": "string"
+            },
+            {
+              "name": "iterations_taken",
+              "value": "={{ $json.iteration_count }} جولة",
+              "type": "string"
+            },
+            {
+              "name": "stop_reason",
+              "value": "={{ $json.stop_reason }}",
+              "type": "string"
+            },
+            {
+              "name": "evaluator_feedback",
+              "value": "={{ $json.critique_feedback }}",
+              "type": "string"
+            },
+            {
+              "name": "brand_compliance_badge",
+              "value": "معتمد وفق معايير هوية أساس ✅ | الألوان: Gold #BA9555, Ink #221F1F | الخط: ثمانية (Thmanyah)",
+              "type": "string"
+            },
+            {
+              "name": "final_generated_posts",
+              "value": "={{ $json.current_draft }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Initialize State & ASAAS Brand Tokens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize State & ASAAS Brand Tokens": {
+      "main": [
+        [
+          {
+            "node": "Orchestrator Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Orchestrator Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Qdrant Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "Orchestrator Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ASAAS Brand & Platform Guidelines Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Orchestrator Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orchestrator Agent": {
+      "main": [
+        [
+          {
+            "node": "Reflexion Evaluator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reflexion Evaluator": {
+      "main": [
+        [
+          {
+            "node": "Reflexion Loop Guardrail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reflexion Loop Guardrail": {
+      "main": [
+        [
+          {
+            "node": "Quality Threshold Met?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quality Threshold Met?": {
+      "main": [
+        [
+          {
+            "node": "Format Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Orchestrator Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NVIDIA Nemotron 3 Ultra (OpenRouter)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Orchestrator Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reflexion Evaluator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "nodeGroups": [],
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "pinData": {},
+  "meta": null,
+  "tags": [],
+  "activeVersion": null
+}

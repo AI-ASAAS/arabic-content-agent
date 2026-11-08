@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+*/node_modules/
+
+# Environment variables & local secrets
+.env
+.env.local
+.env.*.local
+.n8n_data/
+
+# Build artifacts
+dist/
+frontend/dist/
+*/dist/
+
+# Archives & Temporary zip files
+*.zip
+*.tar.gz
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

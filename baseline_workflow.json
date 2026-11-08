@@ -1,0 +1,446 @@
+{
+  "id": "CR4hq638Sb6p82Cv",
+  "name": "Arabic Content Generator - Sequential (Baseline/Backup)",
+  "description": null,
+  "active": false,
+  "activeVersionId": null,
+  "createdAt": "2026-11-05T11:01:11.610Z",
+  "updatedAt": "2026-11-05T11:01:11.610Z",
+  "isArchived": false,
+  "versionId": "e1192d36-183b-4c4c-b8c6-369843ae1818",
+  "versionCounter": 1,
+  "sourceWorkflowId": null,
+  "triggerCount": 0,
+  "nodes": [
+    {
+      "id": "node-01-form-trigger",
+      "name": "On form submission",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        100,
+        300
+      ],
+      "parameters": {
+        "formTitle": "منظومة توليد المحتوى العربي - أساس (النمط التسلسلي التقليدي)",
+        "formDescription": "أدخل موجز المحتوى لتوليد المنشورات عبر المسار الخطي الثابت",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "اسم العلامة التجارية (Brand Name)",
+              "defaultValue": "شركة أساس للحلول الذكية"
+            },
+            {
+              "fieldLabel": "الجمهور المستهدف (Target Audience)",
+              "defaultValue": "أصحاب القرار ورواد الأعمال ومدراء التقنية"
+            },
+            {
+              "fieldLabel": "المنصة المستهدفة (Platform)",
+              "defaultValue": "LinkedIn & X (Twitter)"
+            },
+            {
+              "fieldLabel": "اللهجة المطلوبة (Dialect)",
+              "defaultValue": "فصحى معاصرة مهنية"
+            },
+            {
+              "fieldLabel": "موضوع المنشور / الفكرة الرئيسية (Campaign Topic)",
+              "defaultValue": "أهمية الأنظمة الوكيلة (Agentic AI) في تسريع عمليات الأعمال وتحقيق عائد استثماري حقيقي"
+            }
+          ]
+        }
+      },
+      "webhookId": "c306eb63-8771-4155-b9e8-c47c1439630d"
+    },
+    {
+      "id": "node-02-edit-fields",
+      "name": "Edit Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        320,
+        300
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "brand_name",
+              "value": "={{ $json['اسم العلامة التجارية (Brand Name)'] }}",
+              "type": "string"
+            },
+            {
+              "name": "target_audience",
+              "value": "={{ $json['الجمهور المستهدف (Target Audience)'] }}",
+              "type": "string"
+            },
+            {
+              "name": "platform",
+              "value": "={{ $json['المنصة المستهدفة (Platform)'] }}",
+              "type": "string"
+            },
+            {
+              "name": "dialect",
+              "value": "={{ $json['اللهجة المطلوبة (Dialect)'] }}",
+              "type": "string"
+            },
+            {
+              "name": "campaign_topic",
+              "value": "={{ $json['موضوع المنشور / الفكرة الرئيسية (Campaign Topic)'] }}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "node-03-qdrant",
+      "name": "Qdrant Vector Store",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1,
+      "position": [
+        540,
+        420
+      ],
+      "parameters": {
+        "mode": "retrieve",
+        "qdrantCollection": "arabic_marketing_posts",
+        "options": {
+          "topK": 4
+        }
+      }
+    },
+    {
+      "id": "node-04-embeddings-openai",
+      "name": "Embeddings OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        540,
+        600
+      ],
+      "parameters": {
+        "model": "text-embedding-3-small"
+      }
+    },
+    {
+      "id": "node-05-merge",
+      "name": "Merge - Brief + Retrieved Examples",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        780,
+        300
+      ],
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-06-gemini-model",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1150,
+        650
+      ],
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {
+          "temperature": 0.4
+        }
+      }
+    },
+    {
+      "id": "node-07-draft-1",
+      "name": "01 - Draft 3 Arabic Posts",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        1000,
+        300
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=أنت كاتب محتوى تسويقي عربي محترف لـ {{ $('Edit Fields').item.json.brand_name }}.\nالموضوع: {{ $('Edit Fields').item.json.campaign_topic }}\nالجمهور: {{ $('Edit Fields').item.json.target_audience }}\nالمنصة: {{ $('Edit Fields').item.json.platform }}\nاللهجة: {{ $('Edit Fields').item.json.dialect }}\n\nأمثلة تاريخية من الهوية الصوتية المسترجعة من Qdrant:\n{{ $json.text || 'دليل الهوية الصوتية: نبرة مهنية، مدعومة بالأرقام، خالية من المبالغة الإنشانية.' }}\n\nالمطلوب: صغ 3 مسودات منشورات عربية مميزة ومتنوعة."
+      }
+    },
+    {
+      "id": "node-08-critique-1",
+      "name": "02 - Critique Initial Drafts",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        1220,
+        300
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=أنت ناقد محتوى تسويقي متخصص. راجع المسودة التالية بدقة:\n{{ $json.text }}\n\nحدد نقاط القوة، وأوجه القصور في النبرة، والمبالغات الإنشائية، وما يحتاج تعديلاً لمطابقة الجمهور والمنصة."
+      }
+    },
+    {
+      "id": "node-09-revise-1",
+      "name": "03 - Revise Initial Drafts",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        1440,
+        300
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=أعد كتابة وتحسين المسودات الثلاث بناءً على الملاحظات النقدية التالية حرفياً:\n{{ $json.text }}"
+      }
+    },
+    {
+      "id": "node-10-critique-2",
+      "name": "04 - Critique Revised Drafts",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        1660,
+        300
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=قم بجولة نقدية ثانية على المسودات المعدلة:\n{{ $json.text }}\n\nتأكد من وضوح الـ Call To Action وقوة الجمل الافتتاحية (Hooks)."
+      }
+    },
+    {
+      "id": "node-11-final-revision",
+      "name": "05 - Final Revision",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        1880,
+        300
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=قم بإجراء التنقيح النهائي على المنشورات الثلاثة بناءً على النقد الثاني:\n{{ $json.text }}"
+      }
+    },
+    {
+      "id": "node-12-code-js",
+      "name": "Code in JavaScript",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2100,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Format output posts cleanly\nconst rawText = $json.text || '';\nreturn [{\n  json: {\n    status: 'completed',\n    workflow_type: 'Sequential Baseline (13 Nodes)',\n    final_arabic_content: rawText,\n    processed_at: new Date().toISOString()\n  }\n}];"
+      }
+    },
+    {
+      "id": "node-13-format-output",
+      "name": "06 - Format Final Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2320,
+        300
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "review_title",
+              "value": "اعتماد المنشورات النهائية - مراجعة بشرية",
+              "type": "string"
+            },
+            {
+              "name": "approved_content",
+              "value": "={{ $json.final_arabic_content }}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Merge - Brief + Retrieved Examples",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Qdrant Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Qdrant Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant Vector Store": {
+      "main": [
+        [
+          {
+            "node": "Merge - Brief + Retrieved Examples",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge - Brief + Retrieved Examples": {
+      "main": [
+        [
+          {
+            "node": "01 - Draft 3 Arabic Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "01 - Draft 3 Arabic Posts",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "02 - Critique Initial Drafts",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "03 - Revise Initial Drafts",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "04 - Critique Revised Drafts",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "05 - Final Revision",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "01 - Draft 3 Arabic Posts": {
+      "main": [
+        [
+          {
+            "node": "02 - Critique Initial Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02 - Critique Initial Drafts": {
+      "main": [
+        [
+          {
+            "node": "03 - Revise Initial Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03 - Revise Initial Drafts": {
+      "main": [
+        [
+          {
+            "node": "04 - Critique Revised Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04 - Critique Revised Drafts": {
+      "main": [
+        [
+          {
+            "node": "05 - Final Revision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05 - Final Revision": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "06 - Format Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "nodeGroups": [],
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": null,
+  "meta": null,
+  "tags": [],
+  "shared": [],
+  "activeVersion": null,
+  "parentFolder": null
+}
