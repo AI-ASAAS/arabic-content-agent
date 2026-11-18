@@ -40,7 +40,10 @@ class Settings(BaseSettings):
     llm_models: list[str] = Field(
         default_factory=lambda: [
             "google/gemini-2.5-flash",
+            "google/gemma-4-31b-it:free",
+            "google/gemma-4-26b-a4b-it:free",
             "nvidia/nemotron-3-ultra-550b-a55b:free",
+            "openrouter/free",
         ]
     )
     llm_extra_body: dict[str, Any] = Field(

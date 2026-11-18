@@ -2,15 +2,16 @@
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from config import settings
+from config import ROOT_DIR, settings
 from database import Database
 from migrations.runner import run_migrations
 from modules.content_agent.router import router as content_agent_router
@@ -95,3 +96,17 @@ async def health_check() -> dict[str, str]:
 
 
 app.include_router(content_agent_router)
+
+# Serve built Frontend SPA when frontend/dist exists (enables single-port & Cloudflare Tunnel hosting)
+FRONTEND_DIST = (ROOT_DIR / "frontend" / "dist").resolve()
+
+if FRONTEND_DIST.is_dir():
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        if full_path.startswith("api/") or full_path == "api":
+            raise HTTPException(status_code=404, detail="Endpoint not found")
+        candidate = (FRONTEND_DIST / full_path).resolve()
+        if full_path and candidate.is_file() and FRONTEND_DIST in candidate.parents:
+            return FileResponse(candidate)
+        return FileResponse(FRONTEND_DIST / "index.html")

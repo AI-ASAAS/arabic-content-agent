@@ -94,8 +94,8 @@ class ContentAgentService:
             )
 
         user_prompt = (
-            f"بيانات الحملة المطلوبة:\n"
-            f"- الكيان والعلامة التجارية: {req.brand_name}\n"
+            f"بيانات الحملة والفيديو المطلوب:\n"
+            f"- عنوان الفيديو: {req.brand_name}\n"
             f"- المنصة المستهدفة: {req.platform}\n"
             f"- اللهجة ونبرة الصوت: {req.dialect} ({dialect_rules['guidance']})\n"
             f"- الجمهور المستهدف: {req.target_audience}\n"

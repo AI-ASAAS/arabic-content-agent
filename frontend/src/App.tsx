@@ -61,14 +61,6 @@ const DIALECT_OPTIONS = [
   { value: 'أسلوب تقني مباشر مدعوم بالأرقام والحقائق (Data-Driven)', label: 'أسلوب تقني مباشر مدعوم بالأرقام والحقائق (Data-Driven)' },
 ];
 
-const AUDIENCE_OPTIONS = [
-  { value: 'المطورون ومهندسو البرمجيات والذكاء الاصطناعي (Developers & Engineers)', label: 'المطورون ومهندسو البرمجيات والذكاء الاصطناعي' },
-  { value: 'مدراء التحول الرقمي والتسويق التنفيذي (B2B / C-Level Leaders)', label: 'مدراء التحول الرقمي والتنفيذيون (B2B)' },
-  { value: 'أصحاب الشركات الناشئة ورواد الأعمال (Founders & Startups)', label: 'أصحاب الشركات الناشئة ورواد الأعمال (Founders)' },
-  { value: 'المهنيون وأصحاب الأعمال الحرة (Professionals & Freelancers)', label: 'المهنيون وأصحاب الأعمال الحرة (Freelancers)' },
-  { value: 'الطلاب والراغبون في دخول سوق الذكاء الاصطناعي', label: 'الطلاب والراغبون في دخول سوق الذكاء الاصطناعي' },
-];
-
 const DURATION_OPTIONS = [
   { value: 15, label: '15 ثانية (خاطف وسريع ~ 30 كلمة)' },
   { value: 30, label: '30 ثانية (إيقاع مكثف ~ 65 كلمة)' },
@@ -97,10 +89,10 @@ export default function App() {
   const [theme, toggleTheme] = useTheme();
   const notify = useToast();
 
-  const [brandName, setBrandName] = useState('أكاديمية أساس للذكاء الاصطناعي');
+  const [brandName, setBrandName] = useState('الفرق بين هندسة الذكاء الاصطناعي والذكاء الاصطناعي العملي');
   const [platform, setPlatform] = useState(PLATFORM_OPTIONS[0].value);
   const [dialect, setDialect] = useState(DIALECT_OPTIONS[0].value);
-  const [targetAudience, setTargetAudience] = useState(AUDIENCE_OPTIONS[0].value);
+  const [targetAudience, setTargetAudience] = useState('');
   const [targetSeconds, setTargetSeconds] = useState<number>(60);
   const [variantsCount, setVariantsCount] = useState<number>(3);
   const [topic, setTopic] = useState(PRESET_TOPICS[0]);
@@ -461,13 +453,13 @@ export default function App() {
             </div>
 
             <div className="form__row">
-              <Field label="اسم الكيان أو العلامة التجارية (Brand Name)">
+              <Field label="عنوان الفيديو (Video Title)">
                 {(id) => (
                   <TextInput
                     id={id}
                     value={brandName}
                     onChange={(e) => setBrandName(e.target.value)}
-                    placeholder="أكاديمية أساس للذكاء الاصطناعي"
+                    placeholder="اكتب عنوان الفيديو هنا..."
                     required
                   />
                 )}
@@ -475,13 +467,13 @@ export default function App() {
 
               <Field label="الجمهور المستهدف (Target Audience)">
                 {(id) => (
-                  <Select id={id} value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)}>
-                    {AUDIENCE_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </Select>
+                  <TextInput
+                    id={id}
+                    value={targetAudience}
+                    onChange={(e) => setTargetAudience(e.target.value)}
+                    placeholder="مثال: رواد الأعمال، المطورون، طلاب الجامعات..."
+                    required
+                  />
                 )}
               </Field>
             </div>
@@ -870,11 +862,11 @@ export default function App() {
                   />
                   <div className="model-suggestions-row">
                     {[
+                      { id: 'google/gemma-4-31b-it:free', label: 'gemma-4-31b (مجاني)' },
+                      { id: 'google/gemma-4-26b-a4b-it:free', label: 'gemma-4-26b (مجاني سريع)' },
+                      { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', label: 'nemotron-3-ultra (مجاني)' },
                       { id: 'google/gemini-2.5-flash', label: 'google/gemini-2.5-flash' },
-                      { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', label: 'nemotron-3-ultra (free)' },
                       { id: 'openai/gpt-4o-mini', label: 'gpt-4o-mini' },
-                      { id: 'meta-llama/llama-3.3-70b-instruct', label: 'llama-3.3-70b' },
-                      { id: 'deepseek/deepseek-chat', label: 'deepseek-chat' },
                       { id: 'llama3.2', label: 'llama3.2 (Ollama)' },
                     ].map((m) => (
                       <button
@@ -1054,7 +1046,10 @@ export default function App() {
               </Button>
               <Button
                 variant="glass"
-                onClick={() => window.open('http://localhost:8085/docs', '_blank', 'noopener,noreferrer')}
+                onClick={() => {
+                  const docsUrl = window.location.port === '5180' ? 'http://localhost:8085/docs' : `${window.location.origin}/docs`;
+                  window.open(docsUrl, '_blank', 'noopener,noreferrer');
+                }}
               >
                 توثيق FastAPI (Swagger)
               </Button>

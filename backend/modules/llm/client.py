@@ -97,6 +97,16 @@ class LLMClient:
             candidates.append(self._models[0])
         return candidates
 
+    def _is_free_model(self, candidate_model: str) -> bool:
+        return candidate_model.endswith(":free") or candidate_model == "openrouter/free"
+
+    def _extra_for_model(self, candidate_model: str, base_extra: dict[str, Any]) -> dict[str, Any]:
+        # OpenRouter :free endpoints require free-tier routing (reject data_collection=deny with 404)
+        # and reasoning models (e.g. Nemotron) should use low reasoning effort so tokens go into content.
+        if self._is_free_model(candidate_model):
+            return {"reasoning": {"effort": "low"}}
+        return dict(base_extra)
+
     async def chat(
         self,
         messages: list[dict[str, Any]],
@@ -117,14 +127,16 @@ class LLMClient:
 
         last_error_detail = "خدمة الذكاء الاصطناعي غير متاحة حالياً. يرجى المحاولة مرة أخرى."
         for candidate_model in models:
+            model_extra = self._extra_for_model(candidate_model, extra)
+            model_max_tokens = max(max_tokens, 2500) if self._is_free_model(candidate_model) else max_tokens
             for attempt in range(self._attempts):
                 body: dict[str, Any] = {
                     "model": candidate_model,
                     "messages": messages,
-                    "max_tokens": max_tokens,
+                    "max_tokens": model_max_tokens,
                     "temperature": temperature,
                     **options,
-                    **extra,
+                    **model_extra,
                 }
                 started = time.perf_counter()
                 try:
@@ -190,6 +202,9 @@ class LLMClient:
                     usage.get("cost"),
                 )
                 content = ((data.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
+                if not content.strip():
+                    logger.warning("llm empty content model=%s prompt=%s; trying next fallback", used_model, prompt_version)
+                    break
                 return LLMResult(
                     content=content,
                     model=used_model,
@@ -221,13 +236,15 @@ class LLMClient:
 
         last_error = "تعذر البث المباشر من مزود الذكاء الاصطناعي."
         for candidate_model in models:
+            model_extra = self._extra_for_model(candidate_model, extra)
+            model_max_tokens = max(max_tokens, 3000) if self._is_free_model(candidate_model) else max_tokens
             body: dict[str, Any] = {
                 "model": candidate_model,
                 "messages": messages,
-                "max_tokens": max_tokens,
+                "max_tokens": model_max_tokens,
                 "temperature": temperature,
                 "stream": True,
-                **extra,
+                **model_extra,
             }
             started = time.perf_counter()
             try:
@@ -253,7 +270,13 @@ class LLMClient:
                             prompt_version,
                             snippet[:200],
                         )
-                        last_error = f"فشل البث (HTTP {response.status_code}): {snippet[:180]}"
+                        if "data policy" in snippet.lower():
+                            last_error = (
+                                "رصيد OpenRouter غير كافٍ للنماذج المدفوعة، والنماذج المجانية (:free) معطّلة في إعدادات خصوصية حسابك. "
+                                "فعّل خيار Free model publication من https://openrouter.ai/settings/privacy أو أضف مفتاح Groq/Gemini."
+                            )
+                        else:
+                            last_error = f"فشل البث (HTTP {response.status_code}): {snippet[:180]}"
                         continue
 
                     used_model = candidate_model
