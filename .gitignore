@@ -1,25 +1,35 @@
-# Dependencies
+# Dependencies & Virtual Environments
 node_modules/
 frontend/node_modules/
 */node_modules/
+.venv/
+backend/.venv/
+venv/
 
 # Environment variables & local secrets
 .env
+backend/.env
+frontend/.env
 .env.local
 .env.*.local
-.n8n_data/
 
-# Build artifacts
+# Runtime SQLite database & logs
+backend/data/
+*.db
+*.db-shm
+*.db-wal
+*.log
+
+# Build artifacts & Archives
 dist/
 frontend/dist/
 */dist/
-
-# Archives & Temporary zip files
 *.zip
 *.tar.gz
 
 # Python cache
 __pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 

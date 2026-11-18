@@ -1,4 +1,5 @@
 import type { SVGProps } from 'react';
+import { cx } from '../lib/cx';
 
 /** Line icons in the brand style: rounded caps, 1.75 stroke. */
 const paths = {
@@ -47,6 +48,7 @@ const paths = {
     </>
   ),
   plus: <path d="M12 5v14M5 12h14" />,
+  menu: <path d="M4 7h16M4 12h16M4 17h16" />,
   chevronLeft: <path d="m15 6-6 6 6 6" />,
   chevronRight: <path d="m9 6 6 6-6 6" />,
   sun: (
@@ -170,7 +172,13 @@ const paths = {
 
 export type IconName = keyof typeof paths;
 
-export function Icon({ name, ...props }: { name: IconName } & SVGProps<SVGSVGElement>) {
+/**
+ * Icons that point along the reading direction. They are drawn for Arabic
+ * (chevronLeft = "next/forward") and mirror themselves when `<html dir="ltr">`.
+ */
+const DIRECTIONAL = new Set<IconName>(['chevronLeft', 'chevronRight']);
+
+export function Icon({ name, className, ...props }: { name: IconName } & SVGProps<SVGSVGElement>) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -180,6 +188,7 @@ export function Icon({ name, ...props }: { name: IconName } & SVGProps<SVGSVGEle
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
+      className={cx(DIRECTIONAL.has(name) && 'icon--dir', className)}
       {...props}
     >
       {paths[name]}

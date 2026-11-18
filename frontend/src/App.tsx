@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  AssistantWidget,
   Button,
   Card,
   Field,
@@ -16,26 +17,32 @@ import {
   useToast,
 } from './asaas-ui';
 import {
-  generateWithNvidiaNemotron,
-  DEFAULT_API_KEY,
+  chatWithAgentAssistant,
   DEFAULT_BASE_URL,
-  DEFAULT_MODEL,
   DEFAULT_MAX_TOKENS,
+  DEFAULT_MODEL,
   DEFAULT_STREAMING,
-  POPULAR_PROVIDERS,
+  fetchAgentArchitecture,
+  fetchAgentRunDetail,
+  fetchAgentRuns,
+  generateContentViaAgent,
   getStoredApiKey,
-  setStoredApiKey,
   getStoredBaseUrl,
-  setStoredBaseUrl,
-  getStoredModel,
-  setStoredModel,
   getStoredMaxTokens,
-  setStoredMaxTokens,
+  getStoredModel,
   getStoredStreaming,
+  POPULAR_PROVIDERS,
+  setStoredApiKey,
+  setStoredBaseUrl,
+  setStoredMaxTokens,
+  setStoredModel,
   setStoredStreaming,
-  testCustomApiConnection,
+  testAgentConnection,
+  type AgentRunSummary,
+  type AgentStepTrace,
+  type ArchitectureInfo,
   type GeneratedPostItem,
-} from './openrouterService';
+} from './lib/agentApi';
 import './App.css';
 
 const PLATFORM_OPTIONS = [
@@ -81,8 +88,8 @@ const VARIANTS_OPTIONS = [
 
 const PRESET_TOPICS = [
   'الفرق بين مسار هندسة الذكاء الاصطناعي ومسار الذكاء الاصطناعي العملي في أكاديمية أساس',
-  'أتمتة الأعمال وبناء فرق الوكلاء الأذكياء بدون كتابة كود واحد',
-  'كيف ترفع إنتاجية فريقك 4 أضعاف باستخدام هندسة الأوامر والـ RAG',
+  'بناء وكلاء ذكاء اصطناعي برمجياً عبر Vibe Coding بدلاً من أدوات الربط التقليدية',
+  'كيف ترفع إنتاجية فريقك 4 أضعاف باستخدام هندسة الأوامر ووكلاء التقييم الانعكاسي',
   'بناء حلول الذكاء الاصطناعي أم استخدامها؟ خارطة الطريق لعام 2026',
 ];
 
@@ -96,36 +103,44 @@ export default function App() {
   const [targetAudience, setTargetAudience] = useState(AUDIENCE_OPTIONS[0].value);
   const [targetSeconds, setTargetSeconds] = useState<number>(60);
   const [variantsCount, setVariantsCount] = useState<number>(3);
-  const [topic, setTopic] = useState('الفرق بين مسار هندسة الذكاء الاصطناعي ومسار الذكاء الاصطناعي العملي في أكاديمية أساس');
+  const [topic, setTopic] = useState(PRESET_TOPICS[0]);
 
-  // API Key & Model Configuration (supports ANY custom API Base URL, provider, and model)
+  // Provider configuration (sent cleanly to the FastAPI LLM boundary)
   const [baseUrl, setBaseUrl] = useState<string>(getStoredBaseUrl());
   const [apiKey, setApiKey] = useState<string>(getStoredApiKey());
-  const initialModel = (() => {
-    const stored = getStoredModel();
-    if (!stored || stored === 'nvidia/nemotron-3-ultra-550b-a55b') {
-      return DEFAULT_MODEL; // 'google/gemini-2.5-flash'
-    }
-    return stored;
-  })();
-  const [selectedModel, setSelectedModel] = useState<string>(initialModel);
+  const [selectedModel, setSelectedModel] = useState<string>(getStoredModel());
   const [maxTokens, setMaxTokens] = useState<number>(getStoredMaxTokens());
   const [enableStreaming, setEnableStreaming] = useState<boolean>(getStoredStreaming());
   const [showKeyText, setShowKeyText] = useState(false);
   const [isTestingKey, setIsTestingKey] = useState(false);
   const [apiTestStatus, setApiTestStatus] = useState<{ success: boolean; message: string } | null>(null);
 
+  // Generation & Agent state
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [currentStepLabel, setCurrentStepLabel] = useState('');
   const [liveStreamText, setLiveStreamText] = useState('');
   const [qualityScore, setQualityScore] = useState<number | null>(null);
   const [evaluatorFeedback, setEvaluatorFeedback] = useState<string>('');
-  const [reasoningCount, setReasoningCount] = useState<number | null>(null);
-  const [actualModelUsed, setActualModelUsed] = useState<string>(initialModel);
+  const [actualModelUsed, setActualModelUsed] = useState<string>(getStoredModel());
+  const [runMeta, setRunMeta] = useState<{
+    runId: number;
+    promptVersion: string;
+    iterations: number;
+    stopReason: string;
+    toolsUsed: string[];
+    latencyMs: number;
+    trace: AgentStepTrace[];
+  } | null>(null);
   const [posts, setPosts] = useState<GeneratedPostItem[]>([]);
 
-  const [showWorkflowModal, setShowWorkflowModal] = useState(false);
+  // Modals & Backend Data
+  const [showArchModal, setShowArchModal] = useState(false);
   const [showApiModal, setShowApiModal] = useState(false);
+  const [showRunsModal, setShowRunsModal] = useState(false);
+  const [architecture, setArchitecture] = useState<ArchitectureInfo | null>(null);
+  const [runsHistory, setRunsHistory] = useState<AgentRunSummary[]>([]);
+  const [loadingRuns, setLoadingRuns] = useState(false);
 
   useEffect(() => {
     setStoredApiKey(apiKey);
@@ -135,71 +150,99 @@ export default function App() {
     setStoredStreaming(enableStreaming);
   }, [apiKey, baseUrl, selectedModel, maxTokens, enableStreaming]);
 
-  // Copy helper
+  useEffect(() => {
+    fetchAgentArchitecture()
+      .then(setArchitecture)
+      .catch(() => {
+        // Backend may still be booting; architecture modal handles fallback gracefully
+      });
+  }, []);
+
+  const openRunsModal = async () => {
+    setShowRunsModal(true);
+    setLoadingRuns(true);
+    try {
+      const list = await fetchAgentRuns(20);
+      setRunsHistory(list);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'تعذر تحميل سجل التشغيل من الخادم.';
+      notify(msg, 'error');
+    } finally {
+      setLoadingRuns(false);
+    }
+  };
+
+  const handleLoadRun = async (runId: number) => {
+    try {
+      const detail = await fetchAgentRunDetail(runId);
+      setBrandName(detail.brand_name);
+      setPlatform(detail.platform);
+      setDialect(detail.dialect);
+      setTargetAudience(detail.target_audience);
+      setTopic(detail.topic);
+      setTargetSeconds(detail.target_seconds);
+      setVariantsCount(detail.variants_count);
+      setPosts(detail.posts);
+      setQualityScore(detail.tone_score);
+      setEvaluatorFeedback(detail.evaluator_feedback);
+      setActualModelUsed(detail.used_model);
+      setRunMeta({
+        runId: detail.id,
+        promptVersion: detail.prompt_version,
+        iterations: detail.iterations,
+        stopReason: detail.stop_reason,
+        toolsUsed: detail.tools_used,
+        latencyMs: detail.latency_ms,
+        trace: detail.trace,
+      });
+      setCurrentStep(5);
+      setShowRunsModal(false);
+      notify(`تم استرجاع الجلسة #${detail.id} بنجاح من قاعدة البيانات.`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'تعذر فتح السجل.';
+      notify(msg, 'error');
+    }
+  };
+
   const handleCopy = (text: string, title: string) => {
     navigator.clipboard.writeText(text);
     notify(`تم نسخ ${title} بنجاح إلى الحافظة!`);
   };
 
-  // Test API Connection Live (Works for ANY custom provider / base URL)
   const handleTestApiKey = async () => {
     setIsTestingKey(true);
     setApiTestStatus(null);
     try {
-      const res = await testCustomApiConnection({
+      const res = await testAgentConnection({
         baseUrl,
         apiKey,
         model: selectedModel.trim(),
       });
       setApiTestStatus({ success: res.success, message: res.message });
       if (res.success) {
-        notify(`الاتصال ناجح بمحرك ${selectedModel} (${res.latencyMs}ms)! ✅`);
+        notify(`الاتصال ناجح عبر بوابة الوكيل (${res.latency_ms}ms)!`);
       } else {
         notify(`فشل الاتصال: ${res.message}`, 'error');
       }
-    } catch (err: any) {
-      console.error('Test API error:', err);
-      const errMsg = err.message || String(err);
-      setApiTestStatus({ success: false, message: `فشل الاتصال: ${errMsg}` });
-      notify(`خطأ في التحقق من الـ API: ${errMsg}`, 'error');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'خطأ في الاتصال بالخادم الخلفي';
+      setApiTestStatus({ success: false, message: msg });
+      notify(msg, 'error');
     } finally {
       setIsTestingKey(false);
     }
   };
 
-  // Generate Handler with active model, custom API, and custom settings
   const handleGenerate = async () => {
-    if (!apiKey && !baseUrl.includes('localhost') && !baseUrl.includes('127.0.0.1')) {
-      setShowApiModal(true);
-      notify('يرجى إدخال مفتاح API في نافذة الإعدادات أو اختيار سيرفر محلي (مثل Ollama) للمتابعة 🔑', 'error');
-      return;
-    }
-
     setIsGenerating(true);
     setCurrentStep(1);
+    setCurrentStepLabel('تهيئة حالة الوكيل وسياج الأمان...');
     setLiveStreamText('');
     setQualityScore(null);
-    setReasoningCount(null);
-
-    // Also trigger n8n form webhook in background
-    try {
-      const formData = new FormData();
-      formData.append('اسم العلامة التجارية / الكيان (Brand Name)', brandName);
-      formData.append('المنصة المستهدفة (Platform)', platform);
-      formData.append('اللهجة ونبرة الصوت (Dialect & Tone)', dialect);
-      formData.append('الجمهور المستهدف (Target Audience)', targetAudience);
-      formData.append('المدة المستهدفة بالثواني', String(targetSeconds));
-      formData.append('عدد النصوص المطلوبة', String(variantsCount));
-      formData.append('فكرة الحملة أو المنشور (Campaign Topic / Angle)', topic);
-      fetch('http://localhost:5678/form/128b22ba-f198-45ed-9984-f81c88fce565', {
-        method: 'POST',
-        body: formData,
-        mode: 'no-cors',
-      }).catch(() => {});
-    } catch {}
+    setRunMeta(null);
 
     try {
-      const result = await generateWithNvidiaNemotron({
+      const result = await generateContentViaAgent({
         brandName,
         platform,
         dialect,
@@ -212,10 +255,13 @@ export default function App() {
         variantsCount,
         maxTokens,
         enableStreaming,
-        onStepChange: (step) => setCurrentStep(step),
-        onStreamContent: (stream) => {
+        onStepChange: (step, label) => {
+          setCurrentStep(step);
+          if (label) setCurrentStepLabel(label);
+        },
+        onStreamContent: (stream, model) => {
           setLiveStreamText(stream);
-          // Auto scroll live container smoothly
+          if (model) setActualModelUsed(model);
           const container = document.getElementById('live-stream-container');
           if (container) {
             container.scrollTop = container.scrollHeight;
@@ -226,12 +272,24 @@ export default function App() {
       setPosts(result.posts);
       setQualityScore(result.score);
       setEvaluatorFeedback(result.feedback);
-      setActualModelUsed(result.usedModel);
-      if (result.reasoningTokens) setReasoningCount(result.reasoningTokens);
-      notify(`اكتمل توليد ${result.posts.length} سكريبتات نقية بنجاح بمحرك ${result.usedModel}! 🚀`);
-    } catch (err: any) {
-      console.error('Generation error:', err);
-      notify(`حدث خطأ أثناء التوليد: ${err.message || err}`, 'error');
+      setActualModelUsed(result.used_model);
+      setCurrentStep(5);
+      setRunMeta({
+        runId: result.run_id,
+        promptVersion: result.prompt_version,
+        iterations: result.iterations,
+        stopReason: result.stop_reason,
+        toolsUsed: result.tools_used,
+        latencyMs: result.latency_ms,
+        trace: result.trace,
+      });
+      notify(`اكتمل توليد ${result.posts.length} سكريبتات نقية وحفظها في السجل #${result.run_id}!`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('401') || msg.includes('403') || msg.includes('مفتاح API')) {
+        setShowApiModal(true);
+      }
+      notify(`حدث خطأ أثناء التوليد: ${msg}`, 'error');
     } finally {
       setIsGenerating(false);
     }
@@ -239,52 +297,42 @@ export default function App() {
 
   return (
     <div className="app-container">
-      {/* ───────── Top Navigation Header (Unified Clean App Bar) ───────── */}
+      {/* ───────── Top Navigation Header ───────── */}
       <Glass as="header" thick pill className="top-nav">
         <div className="top-nav__brand">
-          <img src="/brand/logo.png" alt="ASAAS Logo" className="brand-logo-img" />
+          <img src="/brand/logo.png" alt="ASAAS Logo" className="brand-logo-img" width={42} height={42} />
           <div className="top-nav__title-group">
             <h1>
               <Swash>أساس للذكاء الاصطناعي</Swash>
             </h1>
-            <span className="app-subtitle">صياغة سكريبتات تسويقية نقية</span>
+            <span className="app-subtitle">وكيل برمجي مستقل (Vibe-Coded FastAPI Agent)</span>
           </div>
         </div>
 
         <div className="top-nav__actions">
-          {/* Model Status Badge Button */}
           <button
             type="button"
             className="badge-live-agent"
             onClick={() => setShowApiModal(true)}
             style={{ cursor: 'pointer' }}
-            title="إعدادات الـ API والمودل وسقف التوكنات والبث المباشر"
+            title="إعدادات مزود الذكاء الاصطناعي والنموذج"
           >
             <span className="live-pulse" />
             {selectedModel.split('/').pop()}
           </button>
 
-          {/* API Settings Modal Trigger */}
           <Button variant="ghost" size="sm" icon="edit" onClick={() => setShowApiModal(true)}>
             إعدادات API والمودل
           </Button>
 
-          {/* n8n Canvas Editor Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            icon="dashboard"
-            onClick={() => window.open('http://localhost:5678/workflow/d4aV1FqCq6JLIR2v', '_blank')}
-          >
-            محرر n8n
+          <Button variant="ghost" size="sm" icon="clock" onClick={openRunsModal}>
+            سجل التشغيل
           </Button>
 
-          {/* Architecture Modal Button */}
-          <Button variant="ghost" size="sm" icon="file" onClick={() => setShowWorkflowModal(true)}>
-            معمارية n8n
+          <Button variant="ghost" size="sm" icon="file" onClick={() => setShowArchModal(true)}>
+            معمارية الوكيل
           </Button>
 
-          {/* Theme Toggle Button */}
           <Button variant="glass" size="sm" icon="sun" onClick={toggleTheme}>
             {theme === 'dark' ? 'النهار' : 'الليل'}
           </Button>
@@ -295,13 +343,13 @@ export default function App() {
       <div className="stats-summary">
         <Glass className="stat-tile">
           <div className="stat-tile__header">
-            <span>محرك التوليد النشط</span>
+            <span>المحرك البرمجي النشط</span>
             <div className="stat-tile__icon-box">
               <Icon name="sparkle" />
             </div>
           </div>
-          <div className="stat-tile__value">{selectedModel.split('/').pop()}</div>
-          <div className="stat-tile__footer">{selectedModel}</div>
+          <div className="stat-tile__value">FastAPI Agent</div>
+          <div className="stat-tile__footer">Vibe-Coded | AI-ASAAS Skills</div>
         </Glass>
 
         <Glass className="stat-tile">
@@ -325,7 +373,7 @@ export default function App() {
             </div>
           </div>
           <div className="stat-tile__value">Reflexion Gate</div>
-          <div className="stat-tile__footer">فحص النبرة وخلو النصوص من الحشو</div>
+          <div className="stat-tile__footer">Pydantic Structured Output + سقف جولتين</div>
         </Glass>
 
         <Glass className="stat-tile">
@@ -344,7 +392,6 @@ export default function App() {
 
       {/* ───────── Main Studio: Form & Live Agent Progress ───────── */}
       <div className="grid grid--main">
-        {/* Main Column: Studio Form */}
         <Card title="استوديو ضبط السكريبت والحملة" icon="edit">
           <form
             className="form"
@@ -353,7 +400,6 @@ export default function App() {
               handleGenerate();
             }}
           >
-            {/* Target Seconds & Variants Count Selectors (New feature) */}
             <div className="custom-range-row">
               <Field label="تحديد مدة السكريبت بالثواني (Target Duration)">
                 {(id) => (
@@ -422,6 +468,7 @@ export default function App() {
                     value={brandName}
                     onChange={(e) => setBrandName(e.target.value)}
                     placeholder="أكاديمية أساس للذكاء الاصطناعي"
+                    required
                   />
                 )}
               </Field>
@@ -441,7 +488,7 @@ export default function App() {
 
             <Field
               label="فكرة الحملة أو موضوع السكريبت (Campaign Topic / Prompt)"
-              hint="سيتم توليد كلام إلقائي صافٍ ومرتب بدون مشاهد وبدون أي علامات ترقيم إطلاقاً"
+              hint="يُولَّد الكلام المنطوق الصافي عبر وكيل Python FastAPI مع فحص حتمي وهيكلي وفق مهارات أساس"
             >
               {(id) => (
                 <TextArea
@@ -450,6 +497,7 @@ export default function App() {
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   placeholder="اكتب فكرة السكريبت هنا..."
+                  required
                 />
               )}
             </Field>
@@ -459,7 +507,7 @@ export default function App() {
               <div className="chips-row">
                 {PRESET_TOPICS.map((p, idx) => (
                   <button key={idx} type="button" className="chip-btn" onClick={() => setTopic(p)}>
-                    {p.length > 50 ? p.substring(0, 50) + '...' : p}
+                    {p.length > 50 ? `${p.substring(0, 50)}...` : p}
                   </button>
                 ))}
               </div>
@@ -473,17 +521,17 @@ export default function App() {
           </form>
         </Card>
 
-        {/* Right Column: Live Agent Lifecycle & Reflexion Timeline */}
-        <Card title={`مراحل التوليد والتدقيق (${selectedModel.split('/').pop()})`} icon="sparkle">
+        {/* Right Column: Live Vibe-Coded Agent Pipeline */}
+        <Card title={`مراحل الوكيل البرمجي (${selectedModel.split('/').pop()})`} icon="sparkle">
           <div className="pipeline-timeline">
             <div
               className={`pipeline-step ${currentStep === 1 ? 'pipeline-step--active' : currentStep > 1 ? 'pipeline-step--done' : ''}`}
             >
               <div className="step-marker">{currentStep > 1 ? '✓' : '1'}</div>
               <div className="step-content">
-                <div className="step-title">تخطيط الوكيل المنسق (Orchestrator)</div>
+                <div className="step-title">تهيئة الحالة والتحقق (Pydantic Guardrails)</div>
                 <div className="step-desc">
-                  حساب الكلمات المستهدفة ({Math.round(targetSeconds * 2.2)} كلمة) لـ {targetSeconds} ثانية وحظر علامات الترقيم.
+                  فحص المدخلات وضبط سقف التكرار وحساب ميزانية الكلمات (~{Math.round(targetSeconds * 2.2)} كلمة).
                 </div>
               </div>
             </div>
@@ -493,8 +541,10 @@ export default function App() {
             >
               <div className="step-marker">{currentStep > 2 ? '✓' : '2'}</div>
               <div className="step-content">
-                <div className="step-title">استرجاع قواعد وهوية أساس (RAG)</div>
-                <div className="step-desc">استدعاء قواعد النبرة الموثوقة والافتتاحيات الحاسمة.</div>
+                <div className="step-title">تشغيل أدوات الهوية والذاكرة (Read-Only Tools)</div>
+                <div className="step-desc">
+                  استدعاء أدوات هوية أساس وقواعد المنصة واللهجة وأحدث النماذج المعتمدة من SQLite.
+                </div>
               </div>
             </div>
 
@@ -503,9 +553,9 @@ export default function App() {
             >
               <div className="step-marker">{currentStep > 3 ? '✓' : '3'}</div>
               <div className="step-content">
-                <div className="step-title">توليد {variantsCount} سكريبتات نقية بدون مشاهد</div>
+                <div className="step-title">الوكيل المنسق عبر بوابة httpx الموحدة</div>
                 <div className="step-desc">
-                  صياغة كلام منطوق صافٍ بدون علامات ترقيم بمحرك {actualModelUsed.split('/').pop()}.
+                  صياغة {variantsCount} سكريبتات نقية عبر برومبت مُصدّر (content-orchestrator@1) بمحرك {actualModelUsed.split('/').pop()}.
                 </div>
               </div>
             </div>
@@ -515,8 +565,10 @@ export default function App() {
             >
               <div className="step-marker">{currentStep > 4 ? '✓' : '4'}</div>
               <div className="step-content">
-                <div className="step-title">الناقد الانعكاسي (Reflexion Evaluator)</div>
-                <div className="step-desc">فحص خلو النصوص من المشاهد والعلامات ومطابقتها للمدة المحددة.</div>
+                <div className="step-title">التنظيف الحتمي والناقد الانعكاسي (Reflexion)</div>
+                <div className="step-desc">
+                  فحص برمجي + تقييم هيكلي بـ Pydantic من 10 درجات مع إعادة تلقائية عند انخفاض الدرجة عن 8.
+                </div>
               </div>
             </div>
 
@@ -525,8 +577,10 @@ export default function App() {
             >
               <div className="step-marker">{currentStep >= 5 ? '✓' : '5'}</div>
               <div className="step-content">
-                <div className="step-title">اعتماد المخرجات النهائية للتسجيل</div>
-                <div className="step-desc">جاهزية كاملة للقراءة الإلقائية والـ Voiceover بنجاح.</div>
+                <div className="step-title">اعتماد المخرجات وحفظ السجل في SQLite</div>
+                <div className="step-desc">
+                  {currentStepLabel || 'توثيق الجلسة في data/app.db وإخراج السكريبتات جاهزة للإلقاء الصوتي.'}
+                </div>
               </div>
             </div>
           </div>
@@ -537,9 +591,12 @@ export default function App() {
               <div className="score-details">
                 <h4>اعتماد السكريبت النقي (Clean Script Approved)</h4>
                 <p>{evaluatorFeedback}</p>
-                {reasoningCount && (
-                  <div style={{ fontSize: 12, color: 'var(--accent)', marginTop: 4 }}>
-                    توكنات التفكير والتخطيط: {reasoningCount}
+                {runMeta && (
+                  <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 6, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <span>السجل: <b>#{runMeta.runId}</b></span>
+                    <span>الجولات: <b>{runMeta.iterations}</b></span>
+                    <span>البرومبت: <code>{runMeta.promptVersion}</code></span>
+                    <span>الزمن: <b>{runMeta.latencyMs}ms</b></span>
                   </div>
                 )}
                 <div style={{ marginTop: 6 }}>
@@ -551,7 +608,7 @@ export default function App() {
         </Card>
       </div>
 
-      {/* ───────── Live Real-time Streaming Display (طلب المستخدم: رؤية البث أثناء التوليد) ───────── */}
+      {/* ───────── Live Real-time Streaming Theater ───────── */}
       {(isGenerating || liveStreamText) && (
         <section className="live-stream-theater">
           <div className="live-stream-theater__header">
@@ -563,24 +620,27 @@ export default function App() {
                   boxShadow: isGenerating ? '0 0 10px #ef4444' : '0 0 10px #16a34a',
                 }}
               />
-              <span>شاشة البث الحي والتوليد المباشر</span>
+              <span>شاشة البث الحي والتوليد المباشر (SSE Stream)</span>
               <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>({actualModelUsed})</span>
             </div>
             <div className="live-stream-theater__stats">
               <span className="live-stat-pill">
-                الكلمات المكتوبة: <b className="num" style={{ color: 'var(--accent)' }}>{liveStreamText.split(/\s+/).filter(Boolean).length}</b>
+                الكلمات المكتوبة:{' '}
+                <b className="num" style={{ color: 'var(--accent)' }}>
+                  {liveStreamText.split(/\s+/).filter(Boolean).length}
+                </b>
               </span>
               <span className="live-stat-pill">
                 المستهدف: <b className="num">{targetSeconds}</b> ثانية (~<b className="num">{Math.round(targetSeconds * 2.2)}</b> كلمة)
               </span>
               <span className="live-stat-pill">
-                الحالة: {isGenerating ? '⚡ جارٍ التوليد الحي لحظة بلحظة...' : '✅ اكتمل البث والتدقيق'}
+                الحالة: {isGenerating ? 'جارٍ التوليد الحي عبر FastAPI...' : 'اكتمل البث والتدقيق'}
               </span>
             </div>
           </div>
 
           <div className="live-stream-theater__body" id="live-stream-container">
-            {liveStreamText || 'جاري الاتصال بالنموذج وبدء التدفق المباشر للكلمات...'}
+            {liveStreamText || 'جاري تشغيل أدوات الوكيل والاتصال بالنموذج لبدء التدفق المباشر...'}
             {isGenerating && <span className="live-cursor" />}
           </div>
         </section>
@@ -623,12 +683,12 @@ export default function App() {
                 <div className="draft-card__footer">
                   <div className="draft-meta-text">
                     <span>
-                      الكلمات: <b className="num">{post.wordsCount}</b>
+                      الكلمات: <b className="num">{post.words_count}</b>
                     </span>
                     <span>
-                      وقت الإلقاء المقدر: ~<b className="num">{post.readingSeconds}</b> ثانية
+                      وقت الإلقاء المقدر: ~<b className="num">{post.reading_seconds}</b> ثانية
                     </span>
-                    <span>بدون مشاهد وبدون علامات ترقيم ✅</span>
+                    <span>بدون مشاهد وبدون علامات ترقيم</span>
                   </div>
 
                   <Button
@@ -646,10 +706,10 @@ export default function App() {
         </section>
       )}
 
-      {/* ───────── API & Model Settings Modal (Universal Provider Freedom) ───────── */}
+      {/* ───────── API & Model Settings Modal ───────── */}
       {showApiModal && (
         <Modal
-          title="إعدادات الـ API ومحرك التوليد (حرية كاملة لأي مزود)"
+          title="إعدادات الـ API ومحرك التوليد (عبر بوابة الوكيل الموحدة)"
           onClose={() => {
             setShowApiModal(false);
             setApiTestStatus(null);
@@ -678,7 +738,7 @@ export default function App() {
                 variant="ghost"
                 onClick={() => {
                   setBaseUrl(DEFAULT_BASE_URL);
-                  setApiKey(DEFAULT_API_KEY);
+                  setApiKey('');
                   setSelectedModel(DEFAULT_MODEL);
                   setMaxTokens(DEFAULT_MAX_TOKENS);
                   setEnableStreaming(DEFAULT_STREAMING);
@@ -712,13 +772,12 @@ export default function App() {
                 lineHeight: 1.6,
               }}
             >
-              ✨ <b>حرية كاملة للربط:</b> يمكنك ربط أي مزود ذكاء اصطناعي يعجبك (سواء <b>OpenRouter</b> أو <b>Google Gemini مباشر</b> أو <b>OpenAI</b> أو <b>Groq</b> أو <b>DeepSeek</b> أو خادم محلي خاص بك كـ <b>Ollama</b>) بإدخال الرابط والمفتاح والمودل أدناه دون أي قيود.
+              <b>بوابة مزود موحدة (ASAAS AI Skill):</b> تمر كافة الاستدعاءات عبر خادم FastAPI باستخدام عميل <code>httpx</code> واحد مع منع جمع البيانات في OpenRouter، ويمكنك ضبط مفتاحك هنا أو في ملف <code>.env</code> على السيرفر.
             </div>
 
-            {/* Quick Provider Presets */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)' }}>
-                اختيار سريع لمزود الخدمة (بنقرة واحدة لملء الإعدادات):
+                اختيار سريع لمزود الخدمة:
               </span>
               <div
                 style={{
@@ -750,19 +809,16 @@ export default function App() {
                       }}
                     >
                       <span style={{ fontWeight: 700, fontSize: 12.5 }}>{p.name}</span>
-                      <span style={{ fontSize: 10, opacity: 0.8, fontFamily: 'monospace' }}>
-                        {p.defaultModel}
-                      </span>
+                      <span style={{ fontSize: 10, opacity: 0.8, fontFamily: 'monospace' }}>{p.defaultModel}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            {/* API Base URL */}
             <Field
-              label="رابط الـ API الأساسي (API Base URL) - قابل للتعديل بالكامل"
-              hint="أي رابط متوافق مع صيغة OpenAI Chat Completions (يدعم السحابة والسيرفرات المحلية)"
+              label="رابط الـ API الأساسي (API Base URL)"
+              hint="أي رابط متوافق مع OpenAI Chat Completions (يدعم السحابة و Ollama المحلي)"
             >
               {(id) => (
                 <TextInput
@@ -775,10 +831,9 @@ export default function App() {
               )}
             </Field>
 
-            {/* API Key */}
             <Field
-              label="مفتاح الـ API (API Key)"
-              hint="مفتاح الربط للمزود المختار (اتركه فارغاً إذا كنت تتصل بسيرفر محلي كـ Ollama)"
+              label="مفتاح الـ API (اختياري إذا كان مضبوطاً في .env على السيرفر)"
+              hint="اتركه فارغاً لاستخدام المفتاح المضبوط على السيرفر أو للاتصال بـ Ollama محلياً"
             >
               {(id) => (
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -787,7 +842,7 @@ export default function App() {
                     type={showKeyText ? 'text' : 'password'}
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="sk-... أو مفتاح الـ API الخاص بك"
+                    placeholder="sk-... أو اتركه فارغاً لمفتاح السيرفر"
                     style={{ flex: 1, fontFamily: 'monospace' }}
                   />
                   <Button
@@ -796,7 +851,6 @@ export default function App() {
                     size="sm"
                     icon="eye"
                     onClick={() => setShowKeyText(!showKeyText)}
-                    title={showKeyText ? 'إخفاء المفتاح' : 'إظهار المفتاح'}
                   >
                     {showKeyText ? 'إخفاء' : 'إظهار'}
                   </Button>
@@ -804,28 +858,24 @@ export default function App() {
               )}
             </Field>
 
-            {/* Model Name */}
-            <Field
-              label="معرّف النموذج / نوع الـ API (AI Model Name / Slug)"
-              hint="اكتب يدوياً أي مودل معتمد لدى المزود المختار، أو اختر من المقترحات السريعة:"
-            >
+            <Field label="معرّف النموذج (AI Model ID)">
               {(id) => (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <TextInput
                     id={id}
                     value={selectedModel}
                     onChange={(e) => setSelectedModel(e.target.value)}
-                    placeholder="google/gemini-2.5-flash أو gpt-4o أو llama3.2"
+                    placeholder="google/gemini-2.5-flash"
                     style={{ fontFamily: 'monospace', fontSize: 14 }}
                   />
                   <div className="model-suggestions-row">
                     {[
                       { id: 'google/gemini-2.5-flash', label: 'google/gemini-2.5-flash' },
-                      { id: 'nvidia/nemotron-3-ultra-550b-a55b', label: 'nvidia/nemotron-3-ultra-550b-a55b' },
+                      { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', label: 'nemotron-3-ultra (free)' },
                       { id: 'openai/gpt-4o-mini', label: 'gpt-4o-mini' },
                       { id: 'meta-llama/llama-3.3-70b-instruct', label: 'llama-3.3-70b' },
                       { id: 'deepseek/deepseek-chat', label: 'deepseek-chat' },
-                      { id: 'gemini-2.5-flash', label: 'gemini-2.5-flash' },
+                      { id: 'llama3.2', label: 'llama3.2 (Ollama)' },
                     ].map((m) => (
                       <button
                         key={m.id}
@@ -841,43 +891,33 @@ export default function App() {
               )}
             </Field>
 
-            {/* سقف التوكنات (قابل للتعديل مع قيمة افتراضية) */}
-            <Field
-              label="سقف التوكنات (Max Tokens Limit) - قابل للتعديل"
-              hint="الحد الأقصى للتوكنات في الطلب الواحد. القيمة الافتراضية 1,000 توكن لضمان السرعة وحماية الرصيد المالي."
-            >
+            <Field label="سقف التوكنات (Max Tokens Budget)">
               {(id) => (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <TextInput
-                      id={id}
-                      type="number"
-                      min={100}
-                      max={8000}
-                      step={50}
-                      value={maxTokens}
-                      onChange={(e) => setMaxTokens(Number(e.target.value) || 1000)}
-                      style={{ maxWidth: 180, fontFamily: 'monospace', fontWeight: 700 }}
-                    />
-                    <span style={{ fontSize: 13, color: 'var(--text-3)' }}>توكن (Tokens)</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {[500, 800, 1000, 1500, 2000].map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        className={`chip-btn ${maxTokens === t ? 'chip-btn--active' : ''}`}
-                        onClick={() => setMaxTokens(t)}
-                      >
-                        {t === 1000 ? `${t} (الافتراضي)` : t}
-                      </button>
-                    ))}
-                  </div>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <TextInput
+                    id={id}
+                    type="number"
+                    min={200}
+                    max={8000}
+                    step={100}
+                    value={maxTokens}
+                    onChange={(e) => setMaxTokens(Number(e.target.value) || DEFAULT_MAX_TOKENS)}
+                    style={{ maxWidth: 160, fontFamily: 'monospace', fontWeight: 700 }}
+                  />
+                  {[800, 1200, 1800, 2500].map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      className={`chip-btn ${maxTokens === t ? 'chip-btn--active' : ''}`}
+                      onClick={() => setMaxTokens(t)}
+                    >
+                      {t}
+                    </button>
+                  ))}
                 </div>
               )}
             </Field>
 
-            {/* البث المباشر (قابل للتعديل مع قيمة افتراضية) */}
             <div
               style={{
                 display: 'flex',
@@ -892,13 +932,11 @@ export default function App() {
               onClick={() => setEnableStreaming(!enableStreaming)}
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={{ fontWeight: 700, fontSize: 14 }}>
-                  البث المباشر للكلمات على الشاشة (Live Streaming)
-                </span>
+                <span style={{ fontWeight: 700, fontSize: 14 }}>البث المباشر (FastAPI SSE Streaming)</span>
                 <span style={{ fontSize: 12.5, color: 'var(--text-3)' }}>
                   {enableStreaming
-                    ? 'مفعل (الافتراضي): يظهر النص وهو يُكتب كلمة بكلمة لحظة بلحظة على الشاشة'
-                    : 'معطل: انتظار اكتمال التوليد بالكامل ثم إظهار النتيجة دفعة واحدة'}
+                    ? 'مفعل: عرض الكلمات ومراحل الوكيل لحظة بلحظة عبر Server-Sent Events'
+                    : 'معطل: انتظار اكتمال دورة التوليد والتقييم بالكامل ثم إظهار النتيجة'}
                 </span>
               </div>
               <div
@@ -946,20 +984,81 @@ export default function App() {
         </Modal>
       )}
 
-      {/* ───────── Workflow Details Modal ───────── */}
-      {showWorkflowModal && (
+      {/* ───────── SQLite Runs History Modal ───────── */}
+      {showRunsModal && (
         <Modal
-          title="معمارية الوكيل والربط مع n8n & NVIDIA"
-          onClose={() => setShowWorkflowModal(false)}
+          title="سجل جلسات الوكيل (SQLite data/app.db)"
+          onClose={() => setShowRunsModal(false)}
+          footer={
+            <Button variant="ghost" onClick={() => setShowRunsModal(false)}>
+              إغلاق
+            </Button>
+          }
+          wide
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {loadingRuns ? (
+              <p style={{ color: 'var(--text-3)' }}>جاري تحميل سجل الجلسات من قاعدة البيانات...</p>
+            ) : runsHistory.length === 0 ? (
+              <p style={{ color: 'var(--text-3)' }}>لا توجد جلسات محفوظة بعد. قم بتوليد أول سكريبت ليُحفظ تلقائياً في SQLite.</p>
+            ) : (
+              runsHistory.map((run) => (
+                <div
+                  key={run.id}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 12,
+                    background: 'var(--glass-inset)',
+                    border: '1px solid var(--hairline)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 12,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0, flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>
+                      #{run.id} — {run.topic.length > 75 ? `${run.topic.slice(0, 75)}...` : run.topic}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-3)', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      <span>المنصة: {run.platform.split(' ')[0]}</span>
+                      <span>التقييم: <b>{run.tone_score}/10</b></span>
+                      <span>الجولات: {run.iterations}</span>
+                      <span>النموذج: <code>{run.used_model.split('/').pop()}</code></span>
+                      <span>{run.created_at}</span>
+                    </div>
+                  </div>
+                  <Button variant="glass" size="sm" onClick={() => handleLoadRun(run.id)}>
+                    استرجاع النتائج
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {/* ───────── Vibe-Coded Agent Architecture Modal ───────── */}
+      {showArchModal && (
+        <Modal
+          title="معمارية الوكيل البرمجي (Vibe-Coded Agent & AI-ASAAS Skills)"
+          onClose={() => setShowArchModal(false)}
           footer={
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <Button
                 variant="primary"
-                onClick={() => window.open('http://localhost:5678/workflow/d4aV1FqCq6JLIR2v', '_blank')}
+                onClick={() => window.open('https://github.com/AI-ASAAS/skills', '_blank', 'noopener,noreferrer')}
               >
-                فتح الـ Canvas في محرر n8n
+                مستودع مهارات AI-ASAAS
               </Button>
-              <Button variant="ghost" onClick={() => setShowWorkflowModal(false)}>
+              <Button
+                variant="glass"
+                onClick={() => window.open('http://localhost:8085/docs', '_blank', 'noopener,noreferrer')}
+              >
+                توثيق FastAPI (Swagger)
+              </Button>
+              <Button variant="ghost" onClick={() => setShowArchModal(false)}>
                 إغلاق
               </Button>
             </div>
@@ -982,132 +1081,90 @@ export default function App() {
               }}
             >
               <span className="live-pulse" />
-              المعمارية متطابقة بنسبة 100% مع عقد n8n الفعلية (12 عقدة عاملة في مساحة العمل)
+              تم استبدال n8n بالكامل بوكيل برمجي نظيف (Vibe-Coded Python FastAPI) مطابق لمهارات AI-ASAAS/skills
             </div>
 
             <div style={{ background: 'var(--glass-inset)', padding: 14, borderRadius: 12, fontSize: 13 }}>
-              <div><b>اسم سير العمل في n8n:</b> Arabic Content Generator - Agentic AI (ASAAS Brand & NVIDIA Nemotron)</div>
-              <div style={{ marginTop: 4 }}><b>معرف سير العمل (Workflow ID):</b> <code>d4aV1FqCq6JLIR2v</code></div>
-              <div style={{ marginTop: 4 }}><b>نموذج الذكاء الاصطناعي الأساسي:</b> <code>{selectedModel}</code> (NVIDIA Nemotron 3 Ultra عبر OpenRouter)</div>
+              <div><b>المحرك:</b> {architecture?.engine || 'ASAAS Vibe-Coded Python Agent (FastAPI + Pydantic + SQLite)'}</div>
+              <div style={{ marginTop: 4 }}><b>المرجع المعياري:</b> <code>https://github.com/AI-ASAAS/skills</code></div>
+              {architecture?.prompts && (
+                <div style={{ marginTop: 4 }}>
+                  <b>إصدارات البرومبت:</b>{' '}
+                  {Object.entries(architecture.prompts).map(([k, v]) => (
+                    <code key={k} style={{ marginInlineEnd: 8 }}>{v}</code>
+                  ))}
+                </div>
+              )}
             </div>
 
+            {architecture?.skills_applied && (
+              <div>
+                <h4 style={{ fontFamily: 'var(--font-display)', margin: '0 0 8px', fontSize: 15 }}>
+                  المهارات المطبّقة من AI-ASAAS/skills:
+                </h4>
+                <div className="wf-subnodes">
+                  {architecture.skills_applied.map((skill, idx) => (
+                    <div key={idx} className="wf-subnode">{skill}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <h4 style={{ fontFamily: 'var(--font-display)', margin: 0, fontSize: 16 }}>
-              المسار المعماري لتدفق البيانات والعقد الـ 12 في n8n:
+              مسار تنفيذ الوكيل البرمجي (5 مراحل معيارية):
             </h4>
 
             <div className="wf-pipeline">
-              <div className="wf-node">
-                <div className="wf-node__num">1</div>
-                <div className="wf-node__info">
-                  <div className="wf-node__header">
-                    <span className="wf-node__name">On form submission</span>
-                    <span className="wf-node__type">n8n-nodes-base.formTrigger</span>
-                  </div>
-                  <div className="wf-node__desc">
-                    بوابة استقبال مدخلات الحملة: اسم الكيان المنصة اللهجة الجمهور المستهدف المدة بالثواني وعدد النصوص المطلوبة.
-                  </div>
-                </div>
-              </div>
-
-              <div className="wf-node">
-                <div className="wf-node__num">2</div>
-                <div className="wf-node__info">
-                  <div className="wf-node__header">
-                    <span className="wf-node__name">Initialize State & ASAAS Brand Tokens</span>
-                    <span className="wf-node__type">n8n-nodes-base.code</span>
-                  </div>
-                  <div className="wf-node__desc">
-                    تهيئة حالة الوكيل وحقن هوية أساس وقواعد النبرة الصارمة وحظر علامات الترقيم والمشاهد وضبط عداد التكرار (iteration_count = 0).
-                  </div>
-                </div>
-              </div>
-
-              <div className="wf-node wf-node--highlight">
-                <div className="wf-node__num">3</div>
-                <div className="wf-node__info">
-                  <div className="wf-node__header">
-                    <span className="wf-node__name">Orchestrator Agent</span>
-                    <span className="wf-node__type">@n8n/n8n-nodes-langchain.agent</span>
-                  </div>
-                  <div className="wf-node__desc">
-                    الوكيل المنسق الذكي المسؤول عن التخطيط وتوليد السكريبتات النقية ويتصل بالعقد الفرعية الـ 4 التالية:
-                  </div>
-                  <div className="wf-subnodes">
-                    <div className="wf-subnode">
-                      <b>نموذج اللغة:</b> NVIDIA Nemotron 3 Ultra (OpenRouter) <code>@n8n/n8n-nodes-langchain.lmChatOpenAi</code>
+              {(architecture?.pipeline || [
+                { step: 1, name: 'Request Validation & Guardrails', component: 'router.py + schemas.py', skill_ref: 'backend/SKILL.md', description: 'التحقق عبر Pydantic وتطبيق حد المعدل وتهيئة الحالة.' },
+                { step: 2, name: 'Narrow Read-Only Tools', component: 'tools.py + repository.py', skill_ref: 'ai/build-ai-agents/SKILL.md', description: 'تشغيل أدوات الهوية والمنصة واللهجة وذاكرة SQLite.' },
+                { step: 3, name: 'Orchestrator Agent & SSE', component: 'service.py + modules/llm/client.py', skill_ref: 'ai/references/llm-integration.md', description: 'توليد السكريبتات عبر بوابة httpx موحدة مع بث مباشر.' },
+                { step: 4, name: 'Deterministic Sanitizer & Reflexion', component: 'tools.py + llm.structured()', skill_ref: 'ai/SKILL.md', description: 'تنظيف برمجي حتمي + تقييم هيكلي بحد أقصى جولتين.' },
+                { step: 5, name: 'SQLite Persistence', component: 'database.py + migrations/runner.py', skill_ref: 'backend/references/database-and-migrations.md', description: 'حفظ النتائج والتتبع في قاعدة البيانات المحلية.' },
+              ]).map((node) => (
+                <div key={node.step} className={`wf-node ${node.step === 3 ? 'wf-node--highlight' : ''}`}>
+                  <div className="wf-node__num">{node.step}</div>
+                  <div className="wf-node__info">
+                    <div className="wf-node__header">
+                      <span className="wf-node__name">{node.name}</span>
+                      <span className="wf-node__type">{node.skill_ref}</span>
                     </div>
-                    <div className="wf-subnode">
-                      <b>الذاكرة:</b> Window Buffer Memory <code>@n8n/n8n-nodes-langchain.memoryBufferWindow</code>
-                    </div>
-                    <div className="wf-subnode">
-                      <b>أداة الاسترجاع:</b> Qdrant Vector Store <code>@n8n/n8n-nodes-langchain.vectorStoreQdrant</code> (متصلة بالعقدة الفرعية Embeddings OpenAI)
-                    </div>
-                    <div className="wf-subnode">
-                      <b>أداة الهوية:</b> ASAAS Brand & Platform Guidelines Tool <code>@n8n/n8n-nodes-langchain.toolCode</code>
+                    <div className="wf-node__desc">{node.description}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--text-3)', marginTop: 4 }}>
+                      <code>{node.component}</code>
                     </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="wf-node">
-                <div className="wf-node__num">4</div>
-                <div className="wf-node__info">
-                  <div className="wf-node__header">
-                    <span className="wf-node__name">Reflexion Evaluator</span>
-                    <span className="wf-node__type">@n8n/n8n-nodes-langchain.chainLlm</span>
-                  </div>
-                  <div className="wf-node__desc">
-                    وكيل النقد الذاتي والتقييم: يفحص نبرة النص وخلوه التام من علامات الترقيم والمشاهد ويمنح تقييماً من 10 مع ملاحظات نقدية.
-                  </div>
-                </div>
-              </div>
-
-              <div className="wf-node">
-                <div className="wf-node__num">5</div>
-                <div className="wf-node__info">
-                  <div className="wf-node__header">
-                    <span className="wf-node__name">Reflexion Loop Guardrail</span>
-                    <span className="wf-node__type">n8n-nodes-base.code</span>
-                  </div>
-                  <div className="wf-node__desc">
-                    سياج أمان لحساب عدد دورات النقد ومنع التكرار اللانهائي وهدر التوكنات (سقف أقصى دورات = 2).
-                  </div>
-                </div>
-              </div>
-
-              <div className="wf-node">
-                <div className="wf-node__num">6</div>
-                <div className="wf-node__info">
-                  <div className="wf-node__header">
-                    <span className="wf-node__name">Quality Threshold Met?</span>
-                    <span className="wf-node__type">n8n-nodes-base.if</span>
-                  </div>
-                  <div className="wf-node__desc">
-                    بوابة اتخاذ القرار: فحص هل درجة الجودة &gt;= 8 أو تم بلوغ الحد الأقصى للمحاولات؟
-                  </div>
-                </div>
-              </div>
-
-              <div className="wf-loopback-card">
-                <span>🔄 <b>مسار الإعادة (Reflexion Loop):</b> إذا كانت النتيجة &lt; 8 ولم يتجاوز الجولتين يعود المسار فوراً إلى Orchestrator Agent مع الملاحظات النقدية للتصحيح.</span>
-              </div>
-
-              <div className="wf-node">
-                <div className="wf-node__num">7</div>
-                <div className="wf-node__info">
-                  <div className="wf-node__header">
-                    <span className="wf-node__name">Format Final Output</span>
-                    <span className="wf-node__type">n8n-nodes-base.set</span>
-                  </div>
-                  <div className="wf-node__desc">
-                    تنسيق وتصفية السكريبت النهائي الصافي وإخراجه جاهزاً للقراءة والتسجيل الصوتي.
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </Modal>
       )}
+
+      {/* ───────── ASAAS Floating Assistant Widget (skills/ai/SKILL.md) ───────── */}
+      <AssistantWidget
+        title="مساعد أساس"
+        subtitle="استشارة فورية للأفكار والهوكات"
+        user={{ id: 'studio-user', displayName: 'صانع المحتوى' }}
+        intro="أهلاً بك في استوديو أساس. اسألني عن أفكار حملات، هوكات افتتاحية، أو كيفية ضبط الوكيل."
+        suggestions={[
+          'اقترح 3 هوكات خاطفة لفيديو 30 ثانية عن وكلاء الذكاء الاصطناعي',
+          'ما الفرق بين نبرة LinkedIn ونبرة TikTok في هوية أساس؟',
+          'كيف يعمل الناقد الانعكاسي في هذا الوكيل؟',
+        ]}
+        ask={async (messages) => {
+          const latest = messages[messages.length - 1]?.content || '';
+          const history = messages.slice(0, -1);
+          const res = await chatWithAgentAssistant({
+            message: latest,
+            history,
+            baseUrl,
+            apiKey,
+            model: selectedModel.trim(),
+          });
+          return { reply: res.reply };
+        }}
+      />
     </div>
   );
 }

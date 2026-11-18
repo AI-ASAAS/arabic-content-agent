@@ -1,0 +1,32 @@
+{
+  "strip-scene-and-punctuation": {
+    "passed": true,
+    "failures": [],
+    "ms": 1
+  },
+  "catch-banned-cliche": {
+    "passed": true,
+    "failures": [],
+    "ms": 0
+  },
+  "catch-too-short-script": {
+    "passed": true,
+    "failures": [],
+    "ms": 0
+  },
+  "saudi-dialect-guidance": {
+    "passed": true,
+    "failures": [],
+    "ms": 0
+  },
+  "egyptian-dialect-guidance": {
+    "passed": true,
+    "failures": [],
+    "ms": 0
+  },
+  "linkedin-word-budget-90s": {
+    "passed": true,
+    "failures": [],
+    "ms": 0
+  }
+}

@@ -4,6 +4,8 @@ Use this reference only when AI or machine learning is central to the product an
 
 Do not use this reference for a conventional backend with one isolated AI feature, such as one summarization endpoint, transcription feature, embedding call, or simple hosted-model request. Keep that behavior inside its normal module.
 
+This file is the layout for AI inside an ASAAS backend. The `ai` skill sets everything else: model calls go through the shared `modules/llm/` client (`ai/references/llm-integration.md`), assistants follow `assistant-pattern.md`, retrieval follows `rag-qdrant.md`, and evaluation sets live in `evals/<feature>/` (`evaluation.md`). Components below call that client; they never build provider requests themselves.
+
 ## Component Pipelines
 
 Build AI-heavy workflows as pipelines of independently replaceable components with stable inputs and outputs.

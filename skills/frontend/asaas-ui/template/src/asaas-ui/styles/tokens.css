@@ -21,6 +21,19 @@
   --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
   --gutter: 20px;
 
+  /* Page frame: every page and the header share one width and one side padding. */
+  --page-max: 1200px;
+  --page-pad: clamp(16px, 4vw, 32px);
+  --header-h: 64px;
+  --tap: 44px;
+
+  /* Fluid headings for marketing pages (apps keep the fixed h1-h3 sizes). */
+  --fs-display: clamp(30px, 4.2vw + 14px, 56px);
+  --fs-title: clamp(24px, 2vw + 16px, 36px);
+
+  /* -1 in Arabic, 1 in English: multiply a translateX by it to move along the reading direction. */
+  --dir-x: -1;
+
   /* light theme (default) */
   color-scheme: light;
   --bg: #ece5d7;
@@ -61,6 +74,10 @@
   --chart-grid: rgba(34, 31, 31, 0.08);
 }
 
+
+:root[dir='ltr'] {
+  --dir-x: 1;
+}
 
 :root[data-theme='dark'] {
   color-scheme: dark;

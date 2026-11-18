@@ -125,6 +125,29 @@ Keep dynamic SQL tightly controlled. Bind user-provided values as parameters. If
 
 Represent expected client-facing failures with appropriate FastAPI/Starlette responses. Log unexpected operational failures with useful context, then preserve the application's established exception policy.
 
+The ASAAS front end reads the error text from `message`, while FastAPI returns it in `detail`. In a new project, register these two handlers in `main.py` so every `HTTPException` and validation error reaches the user as `{"message": "..."}`:
+
+```python
+from fastapi import Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_error(request: Request, error: StarletteHTTPException) -> JSONResponse:
+    return JSONResponse({"message": str(error.detail)}, status_code=error.status_code, headers=error.headers)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request: Request, error: RequestValidationError) -> JSONResponse:
+    first = error.errors()[0]
+    field = ".".join(str(part) for part in first["loc"][1:])
+    return JSONResponse({"message": f"{field}: {first['msg']}" if field else first["msg"]}, status_code=422)
+```
+
+Write `detail` text that a user can read, because it is shown as is.
+
 Do not leak credentials, tokens, personal data, raw database internals, or stack traces through public error responses.
 
 ## Verification

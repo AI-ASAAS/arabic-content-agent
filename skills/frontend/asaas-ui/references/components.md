@@ -3,6 +3,7 @@
 Everything below is exported from `src/asaas-ui` (`import { Card, Button } from './asaas-ui'`).
 
 ## Contents
+- Page frame: SiteHeader, TabBar, container and layout classes
 - Surfaces: Ambient, Glass, Card
 - Actions: Button
 - Forms: Field, TextInput, TextArea, Select, MoneyInput, PasswordInput, PasswordStrength, FormError, Segmented
@@ -11,10 +12,34 @@ Everything below is exported from `src/asaas-ui` (`import { Card, Button } from 
 - Feedback: EmptyState, ErrorState, Skeleton
 - Typography: Swash, Stretch
 - Icons
-- Helpers: format, period, useTheme, cx
+- Helpers: format, period, useTheme, kitText, cx
 - Page layout classes
 
 ---
+
+## Page frame
+
+**`<SiteHeader brand nav actions? />`** is the sticky glass top bar. `nav` is the site's links
+(`<NavLink>` or `<a>`), rendered once: in the bar above 900px, and in a panel behind a menu
+button at 900px and below. The panel closes on a link tap, Escape, a tap outside, and when
+the window grows past 900px. Keep `actions` to two or three small controls (theme, language,
+sign-in).
+```tsx
+<SiteHeader
+  brand={<Link to="/" className="brand"><span className="brand__mark" />أساس</Link>}
+  nav={<><NavLink to="/" end>الرئيسية</NavLink><NavLink to="/projects">المشاريع</NavLink></>}
+  actions={<Button variant="ghost" icon={theme === 'dark' ? 'sun' : 'moon'} label="الوضع" onClick={toggle} />}
+/>
+<main className="container">…</main>
+```
+
+**`<TabBar label?>`** is a bottom tab bar for apps with three to five sections, shown at 900px
+and below. Give each `NavLink` an `<Icon>` and a one-word label. When it is on the page, the
+body gets bottom padding and the assistant launcher moves above it.
+
+**Classes:** `.container` (shared width and side padding), `.section` (vertical rhythm for
+marketing sections), `.display` and `.title` (fluid hero and section headings), `.cluster`
+(a wrapping row of buttons or tags).
 
 ## Surfaces
 
@@ -79,8 +104,10 @@ string or a node.
 
 ## Overlays
 
-**`<Modal title onClose footer? wide?>`** is a glass dialog in a portal. It locks page scroll,
-closes on Escape and on the close button, and gives a string `title` its swash form. Put the
+**`<Modal title onClose footer? wide?>`** is a glass dialog in a portal. It moves focus to the
+first field (or the dialog), keeps Tab inside, locks page scroll, closes on Escape, the
+backdrop and the close button, returns focus to the opener, and gives a string `title` its
+swash form. Put the
 actions in `footer`, primary first. To submit a form from the footer, give the form an `id`
 and use `<Button type="submit" form="that-id">`.
 
@@ -98,8 +125,9 @@ This needs `<ToastProvider>` at the root.
 - **`<ProgressBar value max />`** and **`<ProgressRing value max size? >{centre}</ProgressRing>`**
   show progress, with a gold gradient on the ring.
 - **`<StatusPill status />`** shows `'paid' | 'partial' | 'unpaid'` with an icon and a label,
-  using the reserved state colours. Edit `STATUS_META` in `ui/Status.tsx` for other domains,
-  but keep three states at most.
+  using the reserved state colours. Edit `STATUS_META` in `ui/Status.tsx` for other domains
+  (each `label` is a `kitText` key, so add the words to `lib/i18n.ts`), but keep three states
+  at most.
 - **`<Avatar name status? size? />`** shows initials (skipping «ال»). A `status` adds a
   coloured ring.
 - **`<MonthSwitcher value onChange />`** moves between months for `YYYY-MM` values, and has a
@@ -133,12 +161,14 @@ Classes for lists and tables:
 ## Icons
 
 `<Icon name="…" />` draws 24px stroke icons in `currentColor`. The available names are:
-`dashboard collect users receipt briefcase vault plus chevronLeft chevronRight sun moon trash
+`dashboard collect users receipt briefcase vault plus menu chevronLeft chevronRight sun moon trash
 edit close check checkCircle clock alert arrowDown arrowUp wallet trend grid list phone
 calendar search pause eye eyeOff logout file sparkle send`.
 
-To add one, put its SVG paths into the `paths` map in `ui/Icon.tsx` (24×24 viewBox,
-stroke-based, no fill).
+`chevronLeft` and `chevronRight` are directional: drawn for Arabic (`chevronLeft` = next) and
+mirrored automatically when `<html dir="ltr">`. To add one, put its SVG paths into the
+`paths` map in `ui/Icon.tsx` (24×24 viewBox, stroke-based, no fill), and add its name to
+`DIRECTIONAL` if it points along the reading direction.
 
 ## Helpers
 
@@ -155,6 +185,8 @@ stroke-based, no fill).
 - **`useTheme()`** returns `[theme, toggle]`. It saves the choice to `localStorage`
   (`asaas-theme`) and updates `<html data-theme>` and the `theme-color` meta. A typical
   toggle button is `<Button icon={theme === 'dark' ? 'sun' : 'moon'} label="الوضع" onClick={toggle} />`.
+- **`kitText(key)`** returns one of the kit's own words in the page language (`<html lang>`);
+  **`setKitText(lang, entries)`** rewords them, and **`kitLang()`** returns `'ar'` or `'en'`.
 - **`cx(...classes)`** joins class names and skips falsy ones.
 
 ## Page layout classes
@@ -168,3 +200,5 @@ stroke-based, no fill).
 - **`.brand` / `.brand__mark` / `.brand__name` / `.brand__tag`:** the logo lockup. The mark
   switches between `/logo-dark.png` and `/logo-light.png` with the theme.
 - **`.hide-mobile`:** hidden under 900px, where the gutter also narrows to 14px.
+- **Breakpoints:** 640px (phone), 900px (tablet: header menu, tab bar), 1080px (grids to one
+  column). Use the same values in site CSS.

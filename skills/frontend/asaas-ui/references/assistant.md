@@ -32,29 +32,10 @@ import { AssistantWidget, type AssistantMessage } from './asaas-ui';
 - Only the **last 8 messages** are sent. Long threads made smaller models drift into earlier
   answers.
 - Errors thrown by `ask` show inline with «إعادة المحاولة» (retry). Throw an `Error` with a
-  readable Arabic message.
+  readable message in the page language. The widget's own texts follow `<html lang>` (see `kitText`).
 - Show the widget only when the server has the assistant switched on (for example, a
   `GET /assistant/status`). Otherwise the robot leads nowhere.
 
-## Server side: what worked in Asaas
+## Server side
 
-The fund's implementation lives in `C:\ayoub\asaas accounting\apps\server\src`:
-`application/assistant/AskAssistant.ts`, `interfaces/assistant/tools.ts` and
-`infrastructure/ai/OpenRouterChatModel.ts`. Reuse its design:
-
-- **One endpoint**, `POST /api/assistant { messages }` → `{ reply, attachments }`, behind the
-  normal session check, with a per-user rate limit (60 per hour).
-- **The model reads through tools, not the database.** Each tool wraps the same use cases as
-  the HTTP API, and results are trimmed to what the question needs. Don't send personal
-  details the model doesn't need, such as phone numbers.
-- **Writes are proposals, never actions.** Write tools only validate and return a card. The
-  user presses «تأكيد», and that goes through the site's normal endpoint with its normal
-  permission checks. The assistant itself can never save, edit or delete.
-- **Filter tools by role on the server.** Users who can only view are never offered write
-  tools.
-- **Force a data lookup on the first step of every question** (`tool_choice: 'required'`).
-  Without it, models sometimes answered later questions from memory and invented names.
-- **Use a short system prompt with a glossary** of the site's terms, and add a reminder
-  before the last message to answer that message only and re-fetch the numbers.
-- **Scope:** refuse anything outside the site with one fixed sentence.
-- **Privacy:** with OpenRouter, send `provider: { data_collection: 'deny' }`.
+The endpoint, tools, permissions, limits and the lessons from the Asaas fund are in the `ai` skill: [assistant-pattern.md](../../../ai/references/assistant-pattern.md) (installed as `ai/references/assistant-pattern.md`). The widget expects `POST /api/assistant { messages }` → `{ reply, attachments }`, 429 when over the limit and 503 when the model is unavailable.

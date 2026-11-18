@@ -86,6 +86,10 @@
   animation: assistant-in 0.35s var(--ease-spring);
 }
 
+:root[dir='ltr'] .assistant-panel {
+  transform-origin: bottom right;
+}
+
 @keyframes assistant-in {
   from { opacity: 0; transform: translateY(12px) scale(0.96); }
 }
@@ -391,14 +395,19 @@
 
 .composer__input::placeholder { color: var(--text-3); }
 
-/* The paper plane points along the reading direction (left in RTL). */
-.composer__send svg { transform: scaleX(-1); }
+/* The paper plane points along the reading direction: drawn pointing right, flipped for Arabic. */
+:root:not([dir='ltr']) .composer__send svg { transform: scaleX(-1); }
 
-/* With the tab bar: the launcher floats just above it. */
+/* Phones and tablets: a smaller launcher above the home indicator, and above the
+   tab bar only when the page actually has one. */
 @media (max-width: 900px) {
   :root {
     --launcher-size: 64px;
     --launcher-gap: 12px;
+    --launcher-bottom: max(12px, var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  }
+
+  :root:has(.tabbar) {
     --launcher-bottom: calc(max(12px, var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))) + 76px);
   }
 }

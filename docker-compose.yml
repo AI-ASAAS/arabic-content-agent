@@ -1,29 +1,21 @@
 services:
-  n8n:
-    image: docker.n8n.io/n8nio/n8n:latest
-    container_name: asaas-n8n-server
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: asaas-agent-backend
     restart: unless-stopped
     ports:
-      - "${N8N_PORT:-5678}:5678"
+      - "${BACKEND_PORT:-8085}:8085"
     environment:
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
-      - N8N_HOST=${N8N_HOST:-localhost}
-      - NODE_ENV=production
-      - GENERIC_TIMEZONE=Asia/Riyadh
-      - TZ=Asia/Riyadh
-      # SQLite optimization & auto-cleanup
-      - EXECUTIONS_DATA_PRUNE=true
-      - EXECUTIONS_DATA_MAX_AGE=168
-      - EXECUTIONS_DATA_PRUNE_MAX_COUNT=50000
-      - N8N_DEFAULT_BINARY_DATA_MODE=filesystem
-      # Code extensions & security
-      - NODE_FUNCTION_ALLOW_BUILTIN=*
-      - NODE_FUNCTION_ALLOW_EXTERNAL=*
-      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://openrouter.ai/api/v1}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_MODELS=${LLM_MODELS:-["google/gemini-2.5-flash","nvidia/nemotron-3-ultra-550b-a55b:free"]}
+      - DATABASE_PATH=/app/data/app.db
+      - AGENT_MAX_ITERATIONS=${AGENT_MAX_ITERATIONS:-2}
+      - AGENT_QUALITY_THRESHOLD=${AGENT_QUALITY_THRESHOLD:-8}
     volumes:
-      - n8n_storage:/home/node/.n8n
-      - ./shared:/data/shared
+      - asaas_agent_data:/app/data
     networks:
       - asaas-network
 
@@ -31,12 +23,12 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: asaas-ai-frontend
+    container_name: asaas-agent-frontend
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-5180}:80"
     depends_on:
-      - n8n
+      - backend
     networks:
       - asaas-network
 
@@ -45,5 +37,5 @@ networks:
     driver: bridge
 
 volumes:
-  n8n_storage:
-    name: asaas_n8n_storage
+  asaas_agent_data:
+    name: asaas_agent_data

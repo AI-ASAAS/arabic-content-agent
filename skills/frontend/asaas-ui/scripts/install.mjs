@@ -2,7 +2,8 @@
 // Installs the Asaas UI kit into a React + Vite project.
 //   node install.mjs <project-dir> [--force]
 // - copies src/asaas-ui (styles, Thmanyah fonts, components, assistant) and the brand files in public/
-// - makes index.html Arabic + RTL, with the theme applied before first paint
+// - makes index.html Arabic + RTL, with theme and language applied before first paint
+//   from public/theme-init.js (no inline script), and viewport-fit=cover for notched phones
 // - imports the styles at the top of src/main.tsx (and drops Vite's starter index.css)
 // Existing files are kept unless --force is given; every step is reported.
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -37,17 +38,12 @@ for (const file of readdirSync(join(template, 'public'))) {
   log(`copied public/${file}`);
 }
 
-// 3. index.html: Arabic, right-to-left, theme before first paint, brand favicon.
-const THEME_SCRIPT = [
-  '<script>',
-  '  // Apply the theme before first paint: light by default, dark only if the user chose it.',
-  "  let theme = 'light';",
-  '  try {',
-  "    if (localStorage.getItem('asaas-theme') === 'dark') theme = 'dark';",
-  '  } catch {}',
-  '  document.documentElement.dataset.theme = theme;',
-  '</script>',
-];
+// 3. index.html: Arabic, right-to-left, theme before first paint, brand favicon,
+//    and a viewport that reaches under the notch so safe-area insets apply.
+//    The start-up script is an external file (public/theme-init.js), never inline,
+//    so the site can ship a strict Content Security Policy.
+const THEME_SCRIPT = ['<script src="/theme-init.js"></script>'];
+const VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />';
 const indexPath = join(project, 'index.html');
 if (existsSync(indexPath)) {
   let html = readFileSync(indexPath, 'utf8');
@@ -60,10 +56,12 @@ if (existsSync(indexPath)) {
   };
   html = html.replace(/<html[^>]*>/, '<html lang="ar" dir="rtl">');
   html = html.replace(/<link rel="icon"[^>]*>/, '<link rel="icon" type="image/png" href="/favicon.png" />');
+  if (/<meta name="viewport"[^>]*>/.test(html)) html = html.replace(/<meta name="viewport"[^>]*>/, VIEWPORT);
+  else beforeHead([VIEWPORT]);
   if (!html.includes('name="theme-color"')) beforeHead(['<meta name="theme-color" content="#ece5d7" />']);
-  if (!html.includes('dataset.theme')) beforeHead(THEME_SCRIPT);
+  if (!html.includes('theme-init.js')) beforeHead(THEME_SCRIPT);
   writeFileSync(indexPath, html);
-  log('index.html: lang="ar" dir="rtl", theme script, favicon');
+  log('index.html: lang="ar" dir="rtl", viewport-fit=cover, /theme-init.js, favicon');
 }
 
 // 4. Styles imported first in main.tsx (fonts, tokens, base, glass, components, layout, assistant).
@@ -79,4 +77,4 @@ if (mainPath) {
   }
 }
 
-log('done. Next: wrap the app in <ToastProvider>, put <Ambient /> behind the content, and see SKILL.md.');
+log('done. Next: wrap the app in <ToastProvider>, put <Ambient /> behind the content, add <SiteHeader> (and <TabBar> for apps), and see SKILL.md.');

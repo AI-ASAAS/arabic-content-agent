@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # ======================================================================
-# إيقاف خادم n8n والواجهة الأمامية على أنظمة Linux
+# إيقاف خادم الوكيل البرمجي (FastAPI) والواجهة الأمامية على أنظمة Linux
 # ======================================================================
 
-echo "[*] Stopping services running on port 5678 (n8n)..."
-fuser -k 5678/tcp 2>/dev/null || true
+echo "[*] Stopping FastAPI Backend on port 8085..."
+fuser -k 8085/tcp 2>/dev/null || true
 
-echo "[*] Stopping services running on port 5180 (Frontend)..."
+echo "[*] Stopping Frontend on port 5180..."
 fuser -k 5180/tcp 2>/dev/null || true
 
 if command -v docker >/dev/null 2>&1; then
-    docker stop asaas-n8n-server asaas-ai-frontend 2>/dev/null || true
+    docker stop asaas-agent-backend asaas-agent-frontend 2>/dev/null || true
 fi
 
 echo "[✓] All services stopped successfully."

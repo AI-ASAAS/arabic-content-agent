@@ -2,7 +2,7 @@ $sourceDir = $PSScriptRoot
 $zipFileName = "ASAAS_AI_Project_Portable.zip"
 $destinationZip = Join-Path $sourceDir $zipFileName
 
-Write-Host "Preparing project zip package..." -ForegroundColor Cyan
+Write-Host "Preparing Vibe-Coded ASAAS Agent zip package..." -ForegroundColor Cyan
 
 if (Test-Path $destinationZip) {
     Remove-Item $destinationZip -Force
@@ -11,10 +11,10 @@ if (Test-Path $destinationZip) {
 $tempStage = Join-Path $env:TEMP ("asaas_stage_" + [System.Guid]::NewGuid().ToString().Substring(0, 8))
 New-Item -ItemType Directory -Path $tempStage -Force | Out-Null
 
-Write-Host "Copying files excluding node_modules and cache..." -ForegroundColor Yellow
+Write-Host "Copying files excluding node_modules, .venv, data, and cache..." -ForegroundColor Yellow
 
-$excludeDirs = @("node_modules", ".git", "__pycache__", ".vscode", ".idea", ".n8n_data")
-$excludeFiles = @("*.zip", "*.pyc", ".env")
+$excludeDirs = @("node_modules", ".git", "__pycache__", ".vscode", ".idea", ".venv", "venv")
+$excludeFiles = @("*.zip", "*.pyc", ".env", "*.db", "*.db-wal", "*.db-shm", "*.log")
 
 Get-ChildItem -Path $sourceDir -Force | Where-Object {
     $item = $_
@@ -30,11 +30,16 @@ Get-ChildItem -Path $sourceDir -Force | Where-Object {
     Copy-Item -Path $_.FullName -Destination $tempStage -Recurse -Force
 }
 
-# Recursively clean any internal node_modules, .git, or __pycache__ folders inside tempStage
+# Recursively clean internal virtualenvs, node_modules, .git, __pycache__, runtime db
 Get-ChildItem -Path $tempStage -Recurse -Directory -Force | Where-Object {
-    $_.Name -in @('.git', '__pycache__', 'node_modules')
+    $_.Name -in @('.git', '__pycache__', 'node_modules', '.venv', 'venv', 'dist')
 } | ForEach-Object {
     Remove-Item -Path $_.FullName -Recurse -Force
+}
+Get-ChildItem -Path $tempStage -Recurse -File -Force | Where-Object {
+    $_.Extension -in @('.db', '.db-wal', '.db-shm', '.log', '.pyc') -or $_.Name -eq '.env'
+} | ForEach-Object {
+    Remove-Item -Path $_.FullName -Force
 }
 
 Write-Host "Compressing archive to $zipFileName ..." -ForegroundColor Yellow
@@ -46,7 +51,7 @@ $zipSizeMB = [math]::Round((Get-Item $destinationZip).Length / 1MB, 2)
 
 Write-Host ""
 Write-Host "======================================================" -ForegroundColor Green
-Write-Host "SUCCESS: Package created successfully!" -ForegroundColor Green
+Write-Host "SUCCESS: Portable Vibe-Coded package created!" -ForegroundColor Green
 Write-Host "File Name: $zipFileName" -ForegroundColor White
 Write-Host "File Size: $zipSizeMB MB" -ForegroundColor White
 Write-Host "Location : $destinationZip" -ForegroundColor Gray

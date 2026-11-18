@@ -1,7 +1,18 @@
 // Rebuilds ~/.claude/skills/asaas-ui/template from the Asaas fund web app (C:/ayoub/asaas accounting).
-//   node assemble-from-fund.cjs
+//   node assemble-from-fund.cjs --overwrite-kit-fixes
 const fs = require('fs');
 const path = require('path');
+
+// The kit now carries changes the fund app does not have: bilingual kit text (lib/i18n.ts),
+// the site header and tab bar (ui/SiteHeader.tsx, styles/shell.css), public/theme-init.js,
+// logical CSS for English, mirrored icons and the focus-trapping Modal. This script deletes
+// ui/, lib/, styles/ and public/ and copies the fund's files over them, which loses all of that.
+// Port those changes into the fund app first, or re-apply them after running.
+if (!process.argv.includes('--overwrite-kit-fixes')) {
+  console.error('Refusing to run: this would erase the kit-only fixes listed at the top of this file.');
+  console.error('Port them to the fund app first, then run with --overwrite-kit-fixes.');
+  process.exit(1);
+}
 
 const WEB = 'C:/ayoub/asaas accounting/apps/web';
 const SKILL = 'C:/Users/Ayoub/.claude/skills/asaas-ui';
@@ -69,7 +80,7 @@ const assistant = read('src/shared/styles/assistant.css').replace(/\r\n/g, '\n')
 write(`${styles}/assistant.css`, assistant);
 write(
   `${styles}/index.css`,
-  ["@import './fonts.css';", "@import './tokens.css';", "@import './base.css';", "@import './glass.css';", "@import './components.css';", "@import './layout.css';", "@import './assistant.css';", ''].join('\n'),
+  ["@import './fonts.css';", "@import './tokens.css';", "@import './base.css';", "@import './glass.css';", "@import './components.css';", "@import './layout.css';", "@import './shell.css';", "@import './assistant.css';", ''].join('\n'),
 );
 
 /* ── lib ── */

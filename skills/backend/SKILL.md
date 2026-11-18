@@ -92,7 +92,7 @@ Read [references/project-structure.md](references/project-structure.md) when cre
 
 Read [references/fastapi-patterns.md](references/fastapi-patterns.md) when implementing endpoints, schemas, services, repositories, lifecycle behavior, or error handling.
 
-Read [references/ai-heavy-projects.md](references/ai-heavy-projects.md) only when AI or machine learning is central to the product and the backend contains multiple model-driven components, providers, pipelines, or experimentation workflows. Do not read it for one isolated AI feature or a simple model API call.
+For any model call, assistant, retrieval or evaluation, also follow the `ai` skill: provider access is one shared `modules/llm/` module. Read [references/ai-heavy-projects.md](references/ai-heavy-projects.md) only when AI or machine learning is central to the product and the backend contains multiple model-driven components, providers, pipelines, or experimentation workflows. Do not read it for one isolated AI feature or a simple model API call.
 
 ## Database and Migrations
 
@@ -120,7 +120,7 @@ Read [references/database-and-migrations.md](references/database-and-migrations.
 6. Verify the smallest meaningful path through the change, including failure behavior relevant to the request.
 7. Update existing implementation documentation after the behavior is verified, clearly distinguishing completed behavior from proposals.
 
-Do not create a test suite by default for a new or small project. When a project has grown substantially and repeated development makes regression risk meaningful, ask the user whether they want to introduce testing before adding a framework, test structure, or test files. Preserve and use existing tests when working in a project that already has them.
+Before handing over, run the application and send real HTTP requests for the main success path and at least one failure path (validation error, missing record, or denied access), and confirm the error body reaches the client as `{"message": ...}`. Do not create a test suite by default for a new or small project. When a project has grown substantially and repeated development makes regression risk meaningful, ask the user whether they want to introduce testing before adding a framework, test structure, or test files. Preserve and use existing tests when working in a project that already has them.
 
 ## Boundaries
 
