@@ -297,7 +297,7 @@ export default function App() {
             <h1>
               <Swash>أساس للذكاء الاصطناعي</Swash>
             </h1>
-            <span className="app-subtitle">وكيل برمجي مستقل (Vibe-Coded FastAPI Agent)</span>
+            <span className="app-subtitle">استوديو صياغة السكريبتات التسويقية الذكية</span>
           </div>
         </div>
 
@@ -335,13 +335,13 @@ export default function App() {
       <div className="stats-summary">
         <Glass className="stat-tile">
           <div className="stat-tile__header">
-            <span>المحرك البرمجي النشط</span>
+            <span>محرك الوكيل الذكي</span>
             <div className="stat-tile__icon-box">
               <Icon name="sparkle" />
             </div>
           </div>
-          <div className="stat-tile__value">FastAPI Agent</div>
-          <div className="stat-tile__footer">Vibe-Coded | AI-ASAAS Skills</div>
+          <div className="stat-tile__value">ASAAS Agent</div>
+          <div className="stat-tile__footer">AI-ASAAS Skills</div>
         </Glass>
 
         <Glass className="stat-tile">
@@ -514,7 +514,7 @@ export default function App() {
         </Card>
 
         {/* Right Column: Live Vibe-Coded Agent Pipeline */}
-        <Card title={`مراحل الوكيل البرمجي (${selectedModel.split('/').pop()})`} icon="sparkle">
+        <Card title={`مراحل التوليد والتدقيق (${selectedModel.split('/').pop()})`} icon="sparkle">
           <div className="pipeline-timeline">
             <div
               className={`pipeline-step ${currentStep === 1 ? 'pipeline-step--active' : currentStep > 1 ? 'pipeline-step--done' : ''}`}
